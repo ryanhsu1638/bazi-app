@@ -1,0 +1,469 @@
+/* ============================================================
+   AI 八字秘書 - 全站樣式
+   設計語彙：科技玄學
+   背景 #0B0F19 ／卡片 #151B2E ／金色 #D4AF37 ／科技藍 #00C2FF
+   ============================================================ */
+
+:root {
+  --bg: #0B0F19;
+  --card: #151B2E;
+  --gold: #D4AF37;
+  --gold-soft: #E8CE7B;
+  --tech: #00C2FF;
+  --tech-soft: #5BD8FF;
+  --text-main: #F2F4F8;
+  --text-sub: #9AA3B8;
+  --border-glass: rgba(255, 255, 255, 0.1);
+
+  --font-display: 'Noto Serif TC', serif;
+  --font-body: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at top, rgba(0, 194, 255, 0.08), transparent 60%),
+    radial-gradient(ellipse at bottom, rgba(212, 175, 55, 0.06), transparent 60%),
+    var(--bg);
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  padding-bottom: 32px;
+}
+
+.screen {
+  display: none;
+  padding: 20px 16px 40px;
+  animation: fadeIn 0.35s ease;
+}
+.screen.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- 玻璃擬態卡片 ---------- */
+.glass-card {
+  background: rgba(21, 27, 46, 0.65);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.glow-gold {
+  border-color: rgba(212, 175, 55, 0.4);
+  box-shadow: 0 0 24px rgba(212, 175, 55, 0.25);
+}
+.glow-tech {
+  border-color: rgba(0, 194, 255, 0.4);
+  box-shadow: 0 0 24px rgba(0, 194, 255, 0.25);
+}
+
+/* ---------- 排版 ---------- */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+h1 { font-size: 28px; letter-spacing: 1px; }
+h2 { font-size: 20px; color: var(--gold-soft); }
+h3 { font-size: 16px; color: var(--tech-soft); }
+p { line-height: 1.7; color: var(--text-sub); margin: 0 0 12px; }
+.mono { font-family: var(--font-mono); }
+
+.text-gold { color: var(--gold); }
+.text-tech { color: var(--tech); }
+.text-sub { color: var(--text-sub); }
+.text-center { text-align: center; }
+
+/* ---------- Hero ---------- */
+.hero {
+  text-align: center;
+  padding: 48px 8px 24px;
+}
+.hero-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tech);
+  border: 1px solid rgba(0, 194, 255, 0.4);
+  border-radius: 999px;
+  padding: 4px 14px;
+  margin-bottom: 16px;
+  letter-spacing: 2px;
+}
+.hero h1 {
+  background: linear-gradient(135deg, var(--gold-soft), var(--tech-soft));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 34px;
+  margin-bottom: 12px;
+}
+.hero p {
+  font-size: 15px;
+  margin-bottom: 28px;
+}
+
+/* ---------- 按鈕 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 15px 20px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  color: #1A1406;
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.35);
+}
+.btn-tech {
+  background: linear-gradient(135deg, var(--tech), var(--tech-soft));
+  color: #002233;
+  box-shadow: 0 4px 20px rgba(0, 194, 255, 0.35);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-glass);
+}
+.btn-sm {
+  padding: 10px 16px;
+  font-size: 14px;
+  width: auto;
+}
+.btn-block-row {
+  display: flex;
+  gap: 10px;
+}
+
+/* ---------- 表單 ---------- */
+.field {
+  margin-bottom: 16px;
+}
+.field label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-bottom: 6px;
+}
+.field input,
+.field select {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-size: 15px;
+  font-family: var(--font-body);
+}
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--tech);
+  box-shadow: 0 0 0 3px rgba(0, 194, 255, 0.15);
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--tech-soft);
+  margin-top: -8px;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.gender-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.gender-toggle .opt {
+  padding: 13px;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  font-size: 15px;
+}
+.gender-toggle .opt.selected {
+  border-color: var(--gold);
+  background: rgba(212, 175, 55, 0.12);
+  color: var(--gold-soft);
+}
+
+/* ---------- 四柱命盤 ---------- */
+.pillars-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.pillar-col {
+  text-align: center;
+  border: 1px solid var(--border-glass);
+  border-radius: 14px;
+  padding: 12px 4px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.pillar-col .label {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+}
+.pillar-col .stem {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gold-soft);
+  line-height: 1.3;
+}
+.pillar-col .branch {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--tech-soft);
+  line-height: 1.3;
+}
+.pillar-col .shishen {
+  font-size: 11px;
+  color: var(--text-sub);
+  margin-top: 6px;
+}
+.pillar-col .hidden-stems {
+  font-size: 10px;
+  color: var(--text-sub);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+}
+
+/* ---------- 五行圓餅圖 ---------- */
+.wuxing-chart-wrap {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.wuxing-legend {
+  flex: 1;
+  font-size: 13px;
+}
+.wuxing-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.wuxing-legend-item .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+/* ---------- 標籤 / Badge ---------- */
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+}
+.badge-free {
+  background: rgba(0, 194, 255, 0.15);
+  color: var(--tech-soft);
+  border: 1px solid rgba(0, 194, 255, 0.3);
+}
+.badge-locked {
+  background: rgba(212, 175, 55, 0.15);
+  color: var(--gold-soft);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+/* ---------- 鎖住內容遮罩 ---------- */
+.locked-section {
+  position: relative;
+  padding: 24px 16px;
+  text-align: center;
+  border: 1px dashed rgba(212, 175, 55, 0.4);
+  border-radius: 16px;
+  background: rgba(212, 175, 55, 0.05);
+}
+.locked-section .lock-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+/* ---------- 倒數計時 ---------- */
+.countdown {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--tech);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+/* ---------- 底部導覽 ---------- */
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(11, 15, 25, 0.9);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-glass);
+  margin-top: 24px;
+}
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-sub);
+  font-size: 11px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 12px;
+}
+.nav-item.active {
+  color: var(--tech);
+}
+.nav-item .icon {
+  font-size: 18px;
+}
+
+/* ---------- 歷史列表 ---------- */
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.history-item .name {
+  font-weight: 700;
+}
+.history-item .meta {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+/* ---------- 頁首返回列 ---------- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.top-bar .back-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+}
+.top-bar h2 {
+  margin: 0;
+}
+
+/* ---------- 空狀態 ---------- */
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-sub);
+}
+
+/* ---------- Toast ---------- */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(21, 27, 46, 0.95);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 999;
+  max-width: 90%;
+  text-align: center;
+}
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---------- 分隔線文字 ---------- */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 12px;
+  color: var(--text-sub);
+  font-size: 12px;
+}
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-glass);
+}

@@ -1,0 +1,350 @@
+/**
+ * app.js — 主應用程式邏輯
+ * ------------------------------------------------------------
+ * 負責：畫面路由切換、表單輸入處理、呼叫排盤引擎、渲染命盤結果、
+ * 兌換碼解鎖付費內容、IndexedDB 歷史紀錄存取、24 小時倒數。
+ */
+
+const App = (() => {
+  // ------------------------------------------------------------
+  // 兌換碼設定
+  // 這裡先放一組預設示範碼，正式使用前請自行修改成您想要的兌換碼。
+  // 也可以放多組，逗號分隔即可，例如 ['BAZI2026', 'VIP888']
+  // ------------------------------------------------------------
+  const VALID_REDEEM_CODES = ['BAZI2026'];
+
+  let currentGender = 'male';
+  let currentChartId = null; // 目前顯示中的命盤在 IndexedDB 的 id
+  let currentChart = null; // 目前顯示中的排盤結果（含十神）
+  let currentAnalysis = null; // 目前顯示中的 AI 分析結果
+
+  const WUXING_COLORS = { 木: '#4ADE80', 火: '#F87171', 土: '#D4AF37', 金: '#E5E7EB', 水: '#00C2FF' };
+
+  // ---------- 畫面路由 ----------
+  function goTo(screenName) {
+    document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active'));
+    const target = document.getElementById('screen-' + screenName);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach((el) => el.classList.remove('active'));
+    const navBtn = document.querySelector(`.nav-item[data-nav="${screenName}"]`);
+    if (navBtn) navBtn.classList.add('active');
+
+    if (screenName === 'history') {
+      renderHistoryList();
+    }
+    window.scrollTo(0, 0);
+  }
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function showToast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // ---------- 性別切換 ----------
+  function selectGender(g) {
+    currentGender = g;
+    document.querySelectorAll('.gender-toggle .opt').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.gender === g);
+    });
+  }
+
+  // ---------- 時區下拉選單初始化 ----------
+  const TIMEZONE_OPTIONS = [
+    { label: 'UTC-12:00', offset: -720 }, { label: 'UTC-11:00', offset: -660 },
+    { label: 'UTC-10:00 (夏威夷)', offset: -600 }, { label: 'UTC-09:00', offset: -540 },
+    { label: 'UTC-08:00 (洛杉磯)', offset: -480 }, { label: 'UTC-07:00', offset: -420 },
+    { label: 'UTC-06:00', offset: -360 }, { label: 'UTC-05:00 (紐約)', offset: -300 },
+    { label: 'UTC-04:00', offset: -240 }, { label: 'UTC-03:00', offset: -180 },
+    { label: 'UTC-02:00', offset: -120 }, { label: 'UTC-01:00', offset: -60 },
+    { label: 'UTC+00:00 (倫敦)', offset: 0 }, { label: 'UTC+01:00 (柏林)', offset: 60 },
+    { label: 'UTC+02:00', offset: 120 }, { label: 'UTC+03:00', offset: 180 },
+    { label: 'UTC+04:00', offset: 240 }, { label: 'UTC+05:00', offset: 300 },
+    { label: 'UTC+05:30 (印度)', offset: 330 }, { label: 'UTC+06:00', offset: 360 },
+    { label: 'UTC+07:00 (曼谷)', offset: 420 }, { label: 'UTC+08:00 (台北/香港/新加坡)', offset: 480 },
+    { label: 'UTC+09:00 (東京/首爾)', offset: 540 }, { label: 'UTC+10:00 (雪梨)', offset: 600 },
+    { label: 'UTC+12:00 (紐西蘭)', offset: 720 }
+  ];
+
+  function initTimezoneSelect() {
+    const sel = document.getElementById('input-timezone');
+    sel.innerHTML = TIMEZONE_OPTIONS.map(
+      (tz) => `<option value="${tz.offset}" ${tz.offset === 480 ? 'selected' : ''}>${tz.label}</option>`
+    ).join('');
+  }
+
+  // ---------- 表單送出 → 排盤 ----------
+  async function submitChart() {
+    const name = document.getElementById('input-name').value.trim() || '未命名';
+    const year = parseInt(document.getElementById('input-year').value, 10);
+    const month = parseInt(document.getElementById('input-month').value, 10);
+    const day = parseInt(document.getElementById('input-day').value, 10);
+    const timeStr = document.getElementById('input-time').value || '12:00';
+    const [hour, minute] = timeStr.split(':').map((v) => parseInt(v, 10));
+    const city = document.getElementById('input-city').value.trim();
+    const country = document.getElementById('input-country').value.trim();
+    const tzOffsetMinutes = parseInt(document.getElementById('input-timezone').value, 10);
+    const ziShiRule = document.getElementById('input-zishi').value;
+
+    if (!year || !month || !day || Number.isNaN(hour)) {
+      showToast('請完整填寫出生年、月、日、時間');
+      return;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      showToast('請確認月份與日期是否正確');
+      return;
+    }
+
+    const input = { year, month, day, hour, minute: minute || 0, tzOffsetMinutes, ziShiRule };
+
+    let chart;
+    try {
+      chart = Bazi.calculate(input);
+      Bazi.attachShishen(chart);
+    } catch (e) {
+      console.error(e);
+      showToast('排盤發生錯誤，請確認輸入資料是否正確');
+      return;
+    }
+
+    const wuxingRatio = Bazi.calcWuxingRatio(chart);
+    const shensha = Bazi.calcShensha(chart);
+    const analysis = AIRules.generateFullAnalysis(chart, currentGender);
+
+    const record = {
+      name,
+      gender: currentGender,
+      city,
+      country,
+      input,
+      chart,
+      wuxingRatio,
+      shensha,
+      analysis,
+      unlocked: false
+    };
+
+    let id;
+    try {
+      id = await BaziDB.saveChart(record);
+    } catch (e) {
+      console.error(e);
+      showToast('儲存命盤時發生錯誤');
+      return;
+    }
+
+    currentChartId = id;
+    currentChart = chart;
+    currentAnalysis = analysis;
+
+    renderResult(record);
+    goTo('result');
+  }
+
+  // ---------- 渲染命盤結果 ----------
+  function renderResult(record) {
+    document.getElementById('result-title').textContent = record.name + ' 的命盤';
+
+    // 四柱
+    const pillarLabels = { year: '年柱', month: '月柱', day: '日柱', hour: '時柱' };
+    const grid = document.getElementById('pillars-grid');
+    grid.innerHTML = ['year', 'month', 'day', 'hour'].map((key) => {
+      const p = record.chart.pillars[key];
+      return `
+        <div class="pillar-col">
+          <div class="label">${pillarLabels[key]}</div>
+          <div class="stem">${p.stem}</div>
+          <div class="branch">${p.branch}</div>
+          <div class="shishen">${p.stemShishen}</div>
+          <div class="hidden-stems">藏干 ${p.hiddenStems.join('')}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('result-daymaster').textContent =
+      `日主：${record.chart.dayMaster}（${record.chart.dayMasterWuxing}） ・ 納音：${record.chart.pillars.day.nayin}`;
+
+    // 五行圓餅圖
+    renderWuxingChart(record.wuxingRatio);
+
+    // 免費：基礎性格
+    document.getElementById('result-personality').textContent = record.analysis.free.personality;
+
+    // 神煞
+    const shenshaCard = document.getElementById('shensha-card');
+    const shenshaList = document.getElementById('shensha-list');
+    if (record.shensha.length > 0) {
+      shenshaCard.style.display = 'block';
+      shenshaList.innerHTML = record.shensha.map(
+        (s) => `<p style="margin-bottom:8px"><span class="text-gold" style="font-weight:700">${s.name}</span>　${s.desc}</p>`
+      ).join('');
+    } else {
+      shenshaCard.style.display = 'none';
+    }
+
+    // 付費內容鎖定狀態
+    if (record.unlocked) {
+      showPaidContent(record.analysis, record.gender);
+    } else {
+      document.getElementById('paid-locked-wrap').style.display = 'block';
+      document.getElementById('paid-content-wrap').style.display = 'none';
+    }
+  }
+
+  function showPaidContent(analysis, gender) {
+    document.getElementById('paid-locked-wrap').style.display = 'none';
+    const wrap = document.getElementById('paid-content-wrap');
+    wrap.style.display = 'block';
+    document.getElementById('result-talent').textContent = analysis.paid.talent;
+    document.getElementById('result-career').textContent = analysis.paid.career;
+    document.getElementById('result-relationship').textContent = analysis.paid.relationship;
+    document.getElementById('relationship-title').textContent = gender === 'female' ? '感情策略（正緣・桃花）' : '感情策略';
+    document.getElementById('result-wealth').textContent = analysis.paid.wealth;
+    document.getElementById('result-health').textContent = analysis.paid.health;
+  }
+
+  // ---------- 五行圓餅圖（純 SVG 繪製，不依賴外部圖表庫）----------
+  function renderWuxingChart(ratio) {
+    const size = 120;
+    const radius = size / 2;
+    const center = size / 2;
+    let cumulatePercent = 0;
+
+    function getCoordinatesForPercent(percent) {
+      const x = center + radius * Math.cos(2 * Math.PI * percent - Math.PI / 2);
+      const y = center + radius * Math.sin(2 * Math.PI * percent - Math.PI / 2);
+      return [x, y];
+    }
+
+    const order = ['木', '火', '土', '金', '水'];
+    let paths = '';
+    order.forEach((wx) => {
+      const percent = (ratio[wx] || 0) / 100;
+      if (percent <= 0) return;
+      const [startX, startY] = getCoordinatesForPercent(cumulatePercent);
+      cumulatePercent += percent;
+      const [endX, endY] = getCoordinatesForPercent(cumulatePercent);
+      const largeArcFlag = percent > 0.5 ? 1 : 0;
+      paths += `<path d="M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z" fill="${WUXING_COLORS[wx]}" opacity="0.85" />`;
+    });
+
+    const svg = `
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        ${paths}
+        <circle cx="${center}" cy="${center}" r="${radius * 0.55}" fill="#0B0F19" />
+      </svg>`;
+    document.getElementById('wuxing-svg-container').innerHTML = svg;
+
+    const legend = order.map((wx) => `
+      <div class="wuxing-legend-item">
+        <span><span class="dot" style="background:${WUXING_COLORS[wx]}"></span>${wx}</span>
+        <span class="mono">${ratio[wx] || 0}%</span>
+      </div>`).join('');
+    document.getElementById('wuxing-legend').innerHTML = legend;
+  }
+
+  // ---------- 兌換碼解鎖 ----------
+  async function tryRedeem() {
+    const codeInput = document.getElementById('redeem-code-input').value.trim().toUpperCase();
+    if (!codeInput) {
+      showToast('請輸入兌換碼');
+      return;
+    }
+    if (!VALID_REDEEM_CODES.map((c) => c.toUpperCase()).includes(codeInput)) {
+      showToast('兌換碼無效，請重新確認');
+      return;
+    }
+    if (currentChartId != null) {
+      try {
+        const updated = await BaziDB.updateChart(currentChartId, { unlocked: true });
+        showPaidContent(updated.analysis, updated.gender);
+        showToast('解鎖成功！完整報告已開啟');
+      } catch (e) {
+        console.error(e);
+        showToast('解鎖時發生錯誤，請重試');
+      }
+    }
+  }
+
+  // ---------- 歷史命盤列表 ----------
+  async function renderHistoryList() {
+    const listEl = document.getElementById('history-list');
+    listEl.innerHTML = '<p class="text-sub text-center">載入中...</p>';
+    let charts;
+    try {
+      charts = await BaziDB.listCharts();
+    } catch (e) {
+      listEl.innerHTML = '<p class="text-sub text-center">讀取歷史紀錄時發生錯誤</p>';
+      return;
+    }
+    if (charts.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size:32px;margin-bottom:12px">🗂</div>
+          <p>尚無歷史命盤</p>
+          <button class="btn btn-tech btn-sm" onclick="App.goTo('input')">立即排盤</button>
+        </div>`;
+      return;
+    }
+    const itemsHtml = charts.map((c) => {
+      const dm = c.chart.dayMaster + c.chart.dayMasterWuxing;
+      return `
+        <div class="history-item" onclick="App.viewChart(${c.id})">
+          <div>
+            <div class="name">${c.name}　${c.gender === 'male' ? '男' : '女'}</div>
+            <div class="meta">${c.input.year}-${String(c.input.month).padStart(2, '0')}-${String(c.input.day).padStart(2, '0')} ・ 日主${dm} ・ ${c.unlocked ? '已解鎖' : '未解鎖'}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="text-tech">›</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    const footerHtml = `
+      <div style="margin-top:16px;text-align:center">
+        <span class="text-sub" style="font-size:12px">共 ${charts.length} 筆紀錄，資料僅存於本機</span>
+      </div>`;
+
+    listEl.innerHTML = itemsHtml + footerHtml;
+  }
+
+  async function viewChart(id) {
+    let record;
+    try {
+      record = await BaziDB.getChart(id);
+    } catch (e) {
+      showToast('讀取命盤時發生錯誤');
+      return;
+    }
+    if (!record) {
+      showToast('找不到這筆命盤紀錄');
+      return;
+    }
+    currentChartId = id;
+    currentChart = record.chart;
+    currentAnalysis = record.analysis;
+    currentGender = record.gender;
+    renderResult(record);
+    goTo('result');
+  }
+
+  // ---------- 初始化 ----------
+  function init() {
+    initTimezoneSelect();
+  }
+
+  return {
+    init,
+    goTo,
+    selectGender,
+    submitChart,
+    tryRedeem,
+    viewChart
+  };
+})();
+
+document.addEventListener('DOMContentLoaded', App.init);
