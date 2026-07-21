@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>AI 八字秘書｜輸入出生資料，3 分鐘了解你的命運藍圖</title>
+  <meta name="description" content="AI 八字秘書：專業八字排盤，免費看四柱五行，輸入兌換碼解鎖完整命理報告。純本機儲存，安裝即用，無需登入。" />
+  <meta name="theme-color" content="#0B0F19" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="八字秘書" />
+  <link rel="icon" href="icons/icon-192.png" />
+
+  <!-- 字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ================= 首頁 ================= -->
+    <section class="screen active" id="screen-home">
+      <div class="hero">
+        <span class="hero-badge">AI × 命理</span>
+        <h1>AI 八字秘書</h1>
+        <p>輸入出生資料<br />3 分鐘了解你的命運藍圖</p>
+        <button class="btn btn-primary" onclick="App.goTo('input')">立即免費排盤</button>
+      </div>
+
+      <div class="glass-card glow-tech">
+        <h3>✦ 精準排盤</h3>
+        <p style="margin-bottom:0">採用天文節氣演算法計算年柱／月柱交界（以立春與十二節為準，非農曆初一），日柱以連續干支曆推算，並已交叉比對公開命例校驗準確度。</p>
+      </div>
+
+      <div class="glass-card glow-gold">
+        <h3>✦ 資料完全私密</h3>
+        <p style="margin-bottom:0">所有命盤資料僅儲存在您的裝置本機（IndexedDB），不上傳雲端、不需註冊登入，安裝後可離線使用。</p>
+      </div>
+
+      <div class="glass-card">
+        <h3>✦ 免費 + 進階內容</h3>
+        <p style="margin-bottom:0">免費查看四柱、五行比例與基礎性格分析；輸入兌換碼即可解鎖完整天賦、事業、感情、財富、健康深度報告。</p>
+      </div>
+    </section>
+
+    <!-- ================= 輸入出生資料 ================= -->
+    <section class="screen" id="screen-input">
+      <div class="top-bar">
+        <button class="back-btn" onclick="App.goTo('home')">‹</button>
+        <h2>輸入出生資料</h2>
+      </div>
+
+      <div class="glass-card">
+        <div class="field">
+          <label>姓名</label>
+          <input type="text" id="input-name" placeholder="請輸入姓名（僅本機顯示用）" />
+        </div>
+
+        <div class="field">
+          <label>性別</label>
+          <div class="gender-toggle">
+            <div class="opt selected" data-gender="male" onclick="App.selectGender('male')">男</div>
+            <div class="opt" data-gender="female" onclick="App.selectGender('female')">女</div>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>出生年</label>
+            <input type="number" id="input-year" placeholder="1990" min="1900" max="2100" />
+          </div>
+          <div class="field">
+            <label>出生月</label>
+            <input type="number" id="input-month" placeholder="1-12" min="1" max="12" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>出生日</label>
+            <input type="number" id="input-day" placeholder="1-31" min="1" max="31" />
+          </div>
+          <div class="field">
+            <label>出生時間</label>
+            <input type="time" id="input-time" value="12:00" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>出生城市</label>
+            <input type="text" id="input-city" placeholder="例：台北" />
+          </div>
+          <div class="field">
+            <label>出生國家</label>
+            <input type="text" id="input-country" placeholder="例：台灣" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>時區</label>
+          <select id="input-timezone"></select>
+        </div>
+        <p class="hint">※ 若出生時間接近時辰交界（子時前後），排盤結果可能因流派不同而異，可於下方切換真太陽時／子時流派校正。</p>
+
+        <div class="field">
+          <label>子時流派</label>
+          <select id="input-zishi">
+            <option value="late">晚子時（23:00-24:59 仍算當天，預設）</option>
+            <option value="early">早子時（23:00 後算隔天）</option>
+          </select>
+        </div>
+
+        <button class="btn btn-tech" onclick="App.submitChart()">開始排盤</button>
+      </div>
+    </section>
+
+    <!-- ================= 命盤結果 ================= -->
+    <section class="screen" id="screen-result">
+      <div class="top-bar">
+        <button class="back-btn" onclick="App.goTo('home')">‹</button>
+        <h2 id="result-title">命盤結果</h2>
+      </div>
+
+      <div class="glass-card glow-gold">
+        <div class="pillars-grid" id="pillars-grid"></div>
+        <p class="text-center mono text-sub" style="font-size:12px;margin-bottom:0" id="result-daymaster"></p>
+      </div>
+
+      <div class="glass-card">
+        <h3>五行比例 <span class="badge badge-free">免費</span></h3>
+        <div class="wuxing-chart-wrap">
+          <div id="wuxing-svg-container"></div>
+          <div class="wuxing-legend" id="wuxing-legend"></div>
+        </div>
+      </div>
+
+      <div class="glass-card">
+        <h3>基礎性格分析 <span class="badge badge-free">免費</span></h3>
+        <p id="result-personality" style="margin-bottom:0"></p>
+      </div>
+
+      <div class="glass-card" id="shensha-card" style="display:none">
+        <h3>神煞 <span class="badge badge-free">免費</span></h3>
+        <div id="shensha-list"></div>
+      </div>
+
+      <div class="section-divider">進階完整報告</div>
+
+      <div id="paid-locked-wrap">
+        <div class="locked-section">
+          <div class="lock-icon">🔒</div>
+          <p style="margin-bottom:14px">輸入兌換碼解鎖完整報告：天賦分析、事業方向、感情策略、財富運勢、健康提醒</p>
+          <div class="field" style="text-align:left">
+            <input type="text" id="redeem-code-input" placeholder="請輸入兌換碼" style="text-align:center;letter-spacing:2px" />
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%" onclick="App.tryRedeem()">解鎖完整報告</button>
+        </div>
+      </div>
+
+      <div id="paid-content-wrap" style="display:none">
+        <div class="glass-card glow-tech">
+          <h3>天賦分析</h3>
+          <p id="result-talent" style="margin-bottom:0"></p>
+        </div>
+        <div class="glass-card glow-tech">
+          <h3>事業方向</h3>
+          <p id="result-career" style="margin-bottom:0"></p>
+        </div>
+        <div class="glass-card glow-tech" id="relationship-card">
+          <h3 id="relationship-title">感情分析</h3>
+          <p id="result-relationship" style="margin-bottom:0"></p>
+        </div>
+        <div class="glass-card glow-tech">
+          <h3>財富運勢</h3>
+          <p id="result-wealth" style="margin-bottom:0"></p>
+        </div>
+        <div class="glass-card glow-tech">
+          <h3>健康提醒</h3>
+          <p id="result-health" style="margin-bottom:0"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 歷史命盤 ================= -->
+    <section class="screen" id="screen-history">
+      <div class="top-bar">
+        <button class="back-btn" onclick="App.goTo('home')">‹</button>
+        <h2>歷史命盤</h2>
+      </div>
+      <div id="history-list"></div>
+    </section>
+
+    <!-- ================= 底部導覽 ================= -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-nav="home" onclick="App.goTo('home')">
+        <span class="icon">🏠</span><span>首頁</span>
+      </button>
+      <button class="nav-item" data-nav="input" onclick="App.goTo('input')">
+        <span class="icon">✦</span><span>排盤</span>
+      </button>
+      <button class="nav-item" data-nav="history" onclick="App.goTo('history')">
+        <span class="icon">🗂</span><span>歷史命盤</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- 排盤引擎 -->
+  <script src="js/astro.js"></script>
+  <script src="js/bazi.js"></script>
+  <script src="js/ai-rules.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
