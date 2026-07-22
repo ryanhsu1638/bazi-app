@@ -11,7 +11,7 @@
  * 否則使用者裝置上快取的舊版本不會自動更新。
  */
 
-const CACHE_VERSION = 'ai-bazi-secretary-v1';
+const CACHE_VERSION = 'ai-bazi-secretary-v2';
 
 const APP_SHELL_FILES = [
   './',
