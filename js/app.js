@@ -18,6 +18,11 @@ const App = (() => {
   let currentChart = null; // 目前顯示中的排盤結果（含十神）
   let currentAnalysis = null; // 目前顯示中的 AI 分析結果
 
+  // ---------- 合盤配對狀態 ----------
+  let matchGenderB = 'male';
+  let currentMatchingResult = null;
+  let matchingUnlocked = false;
+
   const WUXING_COLORS = { 木: '#4ADE80', 火: '#F87171', 土: '#D4AF37', 金: '#E5E7EB', 水: '#00C2FF' };
 
   // ---------- 畫面路由 ----------
@@ -32,6 +37,9 @@ const App = (() => {
 
     if (screenName === 'history') {
       renderHistoryList();
+    }
+    if (screenName === 'match') {
+      populateMatchPersonASelect();
     }
     window.scrollTo(0, 0);
   }
@@ -72,10 +80,11 @@ const App = (() => {
   ];
 
   function initTimezoneSelect() {
-    const sel = document.getElementById('input-timezone');
-    sel.innerHTML = TIMEZONE_OPTIONS.map(
+    const optionsHtml = TIMEZONE_OPTIONS.map(
       (tz) => `<option value="${tz.offset}" ${tz.offset === 480 ? 'selected' : ''}>${tz.label}</option>`
     ).join('');
+    document.getElementById('input-timezone').innerHTML = optionsHtml;
+    document.getElementById('match-timezone-b').innerHTML = optionsHtml;
   }
 
   // ---------- 表單送出 → 排盤 ----------
@@ -170,6 +179,11 @@ const App = (() => {
 
     // 五行圓餅圖
     renderWuxingChart(record.wuxingRatio);
+
+    // 季節用神提醒
+    const yongshen = Bazi.calcSeasonalYongshen(record.chart);
+    document.getElementById('result-yongshen').innerHTML =
+      `生於<span class="text-gold" style="font-weight:700">${yongshen.season}季</span>，喜用五行：<span class="text-tech mono" style="font-weight:700">${yongshen.favored.join('、')}</span><br>${yongshen.desc}`;
 
     // 免費：基礎性格
     document.getElementById('result-personality').textContent = record.analysis.free.personality;
@@ -332,6 +346,154 @@ const App = (() => {
     goTo('result');
   }
 
+  // ============================================================
+  // 合盤配對
+  // ============================================================
+
+  async function populateMatchPersonASelect() {
+    const sel = document.getElementById('match-person-a');
+    let charts;
+    try {
+      charts = await BaziDB.listCharts();
+    } catch (e) {
+      sel.innerHTML = '<option value="">讀取失敗</option>';
+      return;
+    }
+    if (charts.length === 0) {
+      sel.innerHTML = '<option value="">尚無命盤，請先建立一筆</option>';
+      return;
+    }
+    sel.innerHTML = charts.map((c) => {
+      const dateStr = `${c.input.year}-${String(c.input.month).padStart(2, '0')}-${String(c.input.day).padStart(2, '0')}`;
+      return `<option value="${c.id}">${c.name}（${dateStr}）</option>`;
+    }).join('');
+  }
+
+  function selectGenderB(g) {
+    matchGenderB = g;
+    document.querySelectorAll('.gender-toggle .opt[data-gender-b]').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.genderB === g);
+    });
+  }
+
+  async function submitMatching() {
+    const personAId = parseInt(document.getElementById('match-person-a').value, 10);
+    if (!personAId) {
+      showToast('請先選擇你的命盤');
+      return;
+    }
+
+    const nameB = document.getElementById('match-name-b').value.trim() || '對方';
+    const yearB = parseInt(document.getElementById('match-year-b').value, 10);
+    const monthB = parseInt(document.getElementById('match-month-b').value, 10);
+    const dayB = parseInt(document.getElementById('match-day-b').value, 10);
+    const timeStrB = document.getElementById('match-time-b').value || '12:00';
+    const [hourB, minuteB] = timeStrB.split(':').map((v) => parseInt(v, 10));
+    const tzOffsetB = parseInt(document.getElementById('match-timezone-b').value, 10);
+
+    if (!yearB || !monthB || !dayB || Number.isNaN(hourB)) {
+      showToast('請完整填寫對方的出生年、月、日、時間');
+      return;
+    }
+
+    let recordA;
+    try {
+      recordA = await BaziDB.getChart(personAId);
+    } catch (e) {
+      showToast('讀取你的命盤時發生錯誤');
+      return;
+    }
+    if (!recordA) {
+      showToast('找不到選擇的命盤');
+      return;
+    }
+
+    let chartB;
+    try {
+      chartB = Bazi.calculate({
+        year: yearB, month: monthB, day: dayB, hour: hourB, minute: minuteB || 0,
+        tzOffsetMinutes: tzOffsetB, ziShiRule: 'late'
+      });
+      Bazi.attachShishen(chartB);
+    } catch (e) {
+      console.error(e);
+      showToast('對方命盤排盤時發生錯誤，請確認資料是否正確');
+      return;
+    }
+
+    const meta = { nameA: recordA.name, nameB, genderA: recordA.gender, genderB: matchGenderB };
+    const result = Matching.computeMatching(recordA.chart, chartB, meta);
+
+    currentMatchingResult = result;
+    matchingUnlocked = false;
+    renderMatchingResult(result);
+  }
+
+  function renderMatchingResult(result) {
+    document.getElementById('match-setup-wrap').style.display = 'none';
+    document.getElementById('match-result-wrap').style.display = 'block';
+
+    document.getElementById('match-score-level').textContent = result.level;
+    document.getElementById('match-score-level').style.color = result.levelColor;
+    document.getElementById('match-score-number').textContent = result.score;
+    document.getElementById('match-score-number').style.color = result.levelColor;
+
+    document.getElementById('match-daymasters').innerHTML =
+      `${result.meta.nameA}：<span class="text-gold mono">${result.dayMasterA}</span>　${result.meta.nameB}：<span class="text-tech mono">${result.dayMasterB}</span>`;
+    document.getElementById('match-free-summary').textContent = result.freeSummary;
+
+    document.getElementById('match-locked-wrap').style.display = matchingUnlocked ? 'none' : 'block';
+    document.getElementById('match-paid-wrap').style.display = matchingUnlocked ? 'block' : 'none';
+    if (matchingUnlocked) {
+      renderMatchingPaidContent(result);
+    }
+  }
+
+  function renderMatchingPaidContent(result) {
+    const yearRelText = result.yearBranchRelation.relations
+      .map((r) => `${r.type}：${r.desc}`).join('\n');
+    const dayRelText = result.dayBranchRelation.relations
+      .map((r) => `${r.type}：${r.desc}`).join('\n');
+    document.getElementById('match-year-relation').textContent =
+      `${result.yearBranchRelation.branchA} × ${result.yearBranchRelation.branchB}　－　${yearRelText}`;
+    document.getElementById('match-day-relation').textContent =
+      `${result.dayBranchRelation.branchA} × ${result.dayBranchRelation.branchB}　－　${dayRelText}`;
+    document.getElementById('match-nayin-relation').textContent =
+      `${result.nayinRelation.nayinA}（${result.nayinRelation.nayinWxA}） × ${result.nayinRelation.nayinB}（${result.nayinRelation.nayinWxB}）　－　${result.nayinRelation.desc}`;
+    document.getElementById('match-advice').textContent = result.paidAdvice;
+  }
+
+  function tryRedeemMatching() {
+    const codeInput = document.getElementById('match-redeem-code-input').value.trim().toUpperCase();
+    if (!codeInput) {
+      showToast('請輸入兌換碼');
+      return;
+    }
+    if (!VALID_REDEEM_CODES.map((c) => c.toUpperCase()).includes(codeInput)) {
+      showToast('兌換碼無效，請重新確認');
+      return;
+    }
+    matchingUnlocked = true;
+    document.getElementById('match-locked-wrap').style.display = 'none';
+    document.getElementById('match-paid-wrap').style.display = 'block';
+    if (currentMatchingResult) {
+      renderMatchingPaidContent(currentMatchingResult);
+    }
+    showToast('解鎖成功！完整合婚分析已開啟');
+  }
+
+  function resetMatching() {
+    currentMatchingResult = null;
+    matchingUnlocked = false;
+    document.getElementById('match-setup-wrap').style.display = 'block';
+    document.getElementById('match-result-wrap').style.display = 'none';
+    document.getElementById('match-name-b').value = '';
+    document.getElementById('match-year-b').value = '';
+    document.getElementById('match-month-b').value = '';
+    document.getElementById('match-day-b').value = '';
+    document.getElementById('match-redeem-code-input').value = '';
+  }
+
   // ---------- 初始化 ----------
   function init() {
     initTimezoneSelect();
@@ -343,7 +505,11 @@ const App = (() => {
     selectGender,
     submitChart,
     tryRedeem,
-    viewChart
+    viewChart,
+    selectGenderB,
+    submitMatching,
+    tryRedeemMatching,
+    resetMatching
   };
 })();
 

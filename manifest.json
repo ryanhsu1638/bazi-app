@@ -1,6 +1,6 @@
 {
-  "name": "AI 八字秘書",
-  "short_name": "八字秘書",
+  "name": "八字命書",
+  "short_name": "八字命書",
   "description": "輸入出生資料，3 分鐘了解你的命運藍圖。純本機儲存，安裝即用，無需登入。",
   "start_url": "./index.html",
   "scope": "./",

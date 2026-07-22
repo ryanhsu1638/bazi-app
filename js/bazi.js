@@ -338,6 +338,138 @@ const Bazi = (() => {
     return results;
   }
 
+  // ============================================================
+  // 五行生克關係（供合婚配對使用）
+  // ------------------------------------------------------------
+  // 判斷「日主A」相對於「日主B」的五行關係
+  // ============================================================
+  function getWuxingRelation(wuxingA, wuxingB) {
+    if (wuxingA === wuxingB) return '相同';
+    if (WUXING_SHENG[wuxingA] === wuxingB) return 'A生B';
+    if (WUXING_SHENG[wuxingB] === wuxingA) return 'B生A';
+    if (WUXING_KE[wuxingA] === wuxingB) return 'A克B';
+    if (WUXING_KE[wuxingB] === wuxingA) return 'B克A';
+    return '未知';
+  }
+
+  // ============================================================
+  // 地支合婚關係表（傳統命理通行規則，出自子平術通行版本）
+  // ------------------------------------------------------------
+  // 六合：兩兩相合，情感和諧、互補
+  // 六沖：兩兩相沖，個性差異大、易有摩擦
+  // 三合局：三個地支合成一個五行局，同組內任兩個地支互為「半合」，關係加分
+  // 相刑：彼此消耗、易有情緒摩擦的關係
+  // ============================================================
+  const LIUHE_PAIRS = [
+    ['子', '丑'], ['寅', '亥'], ['卯', '戌'], ['辰', '酉'], ['巳', '申'], ['午', '未']
+  ];
+  const LIUCHONG_PAIRS = [
+    ['子', '午'], ['丑', '未'], ['寅', '申'], ['卯', '酉'], ['辰', '戌'], ['巳', '亥']
+  ];
+  const SANHE_GROUPS = [
+    ['申', '子', '辰'], ['巳', '酉', '丑'], ['寅', '午', '戌'], ['亥', '卯', '未']
+  ];
+  const XIANGXING_GROUPS = [
+    ['寅', '巳', '申'], ['丑', '戌', '未'], ['子', '卯']
+  ];
+
+  function pairInList(branchA, branchB, list) {
+    return list.some((pair) => pair.includes(branchA) && pair.includes(branchB));
+  }
+  function pairInGroupList(branchA, branchB, groups) {
+    return groups.some((g) => g.includes(branchA) && g.includes(branchB));
+  }
+
+  /**
+   * 判斷兩個地支之間的關係，回傳陣列（可能同時符合多種關係，例如刑中帶合等特殊情況極少見，
+   * 一般只會命中其中一種）
+   */
+  function getBranchRelation(branchA, branchB) {
+    if (branchA === branchB) return [{ type: '同支', desc: '地支相同，代表個性或人生階段步調相近' }];
+
+    const relations = [];
+    if (pairInList(branchA, branchB, LIUHE_PAIRS)) {
+      relations.push({ type: '六合', desc: '兩人關係和諧互補，是傳統命理中相當加分的配對關係' });
+    }
+    if (pairInList(branchA, branchB, LIUCHONG_PAIRS)) {
+      relations.push({ type: '六沖', desc: '兩人個性或生活步調差異較大，相處需要更多包容與溝通' });
+    }
+    if (pairInGroupList(branchA, branchB, SANHE_GROUPS)) {
+      relations.push({ type: '三合', desc: '兩人氣場相合，容易一拍即合，長期相處有助力' });
+    }
+    if (pairInGroupList(branchA, branchB, XIANGXING_GROUPS)) {
+      relations.push({ type: '相刑', desc: '相處中容易互相消耗情緒，需要多留意溝通方式，避免累積摩擦' });
+    }
+    if (relations.length === 0) {
+      relations.push({ type: '平和', desc: '沒有特別強烈的合沖刑關係，相處平順、無明顯先天阻力' });
+    }
+    return relations;
+  }
+
+  // ============================================================
+  // 納音五行取值（納音名稱最後一字即為其五行，例如「海中金」→金）
+  // ============================================================
+  function getNayinWuxing(nayinStr) {
+    return nayinStr.charAt(nayinStr.length - 1);
+  }
+
+  // ============================================================
+  // 季節用神提醒（原創簡化版，依古典命理「調候」概念自行撰寫）
+  // ------------------------------------------------------------
+  // 概念：日主五行在不同出生季節，會面臨「過旺/過弱」「過冷/過熱/過燥/過濕」
+  // 等失衡狀態，傳統命理稱為「調候」，會建議用某個五行來平衡調節。
+  // 本功能為簡化版（依日主五行 × 出生季節，共 20 種組合），
+  // 完整的調候用神理論還會精確到「日主天干 × 出生月份」共120種組合，
+  // 並考量四柱其餘干支的互動，僅供參考，非命理定論。
+  // ============================================================
+  const SEASON_BY_BRANCH = {
+    寅: '春', 卯: '春', 辰: '春',
+    巳: '夏', 午: '夏', 未: '夏',
+    申: '秋', 酉: '秋', 戌: '秋',
+    亥: '冬', 子: '冬', 丑: '冬'
+  };
+
+  const SEASONAL_YONGSHEN = {
+    木: {
+      春: { favored: ['火'], desc: '生於春天，木氣當令旺盛，適合有火來展現才華、順勢發揮（木生火，讓旺盛的木氣有出口），忌再遇過多水，以免木被水泡而難以成材。' },
+      夏: { favored: ['水'], desc: '生於夏天，木氣被夏火消耗、天氣炎熱乾燥，需要水來滋潤調候，避免過於燥烈，水能讓木氣保持生機。' },
+      秋: { favored: ['水'], desc: '生於秋天，金氣當令剋木，木氣偏弱，需要水來化解金的剋制（金生水、水生木），同時忌金太重。' },
+      冬: { favored: ['火'], desc: '生於冬天，水氣旺盛容易讓木氣「水多木漂」，且天氣寒冷，需要火來溫暖局面、蒸發多餘水氣。' }
+    },
+    火: {
+      春: { favored: ['木'], desc: '生於春天，木氣生火，火勢正在醞釀成長，木是重要的助力來源，讓火氣穩定增長。' },
+      夏: { favored: ['水'], desc: '生於夏天，火氣當令至極旺盛，最需要水來調候降溫，避免過於燥烈；忌再見過多木火，以免火勢失控。' },
+      秋: { favored: ['木'], desc: '生於秋天，火氣被秋金消耗而轉弱，需要木來持續生火，維持火氣不熄。' },
+      冬: { favored: ['木'], desc: '生於冬天，水氣旺盛剋火，且天氣寒冷，需要木來化解水的剋制（水生木、木生火），幫助火氣得以延續。' }
+    },
+    土: {
+      春: { favored: ['火'], desc: '生於春天，木氣旺盛剋土，土氣偏虛弱，需要火來生扶土氣，讓土變得厚實穩固。' },
+      夏: { favored: ['水'], desc: '生於夏天，火氣旺盛生土但天氣燥熱，土容易過燥龜裂，需要水來滋潤調候，維持土壤肥沃。' },
+      秋: { favored: ['火'], desc: '生於秋天，土氣生金而洩氣，需要火來持續生扶土氣，避免土氣過於虛弱。' },
+      冬: { favored: ['火'], desc: '生於冬天，水氣旺盛容易讓土氣「土蕩」，且天氣寒冷，需要火來溫暖局面、鞏固土氣。' }
+    },
+    金: {
+      春: { favored: ['土'], desc: '生於春天，金氣尚屬休囚，木氣當令，需要土來生扶金氣，讓金質逐漸堅實。' },
+      夏: { favored: ['水'], desc: '生於夏天，火氣旺盛剋金，天氣燥熱，需要水來調候降溫、化解火的剋制，土也能同時生金。' },
+      秋: { favored: ['火'], desc: '生於秋天，金氣當令旺盛至極，需要火來鍛鍊，「金無火煉不成器」，適度的火能讓金氣發揮真正價值。' },
+      冬: { favored: ['火'], desc: '生於冬天，水氣旺盛洩金，且天氣寒冷，金遇寒容易脆裂，需要火來溫暖局面、保護金氣。' }
+    },
+    水: {
+      春: { favored: ['金'], desc: '生於春天，木氣旺盛洩水氣，需要金來持續生水，維持水源不絕。' },
+      夏: { favored: ['金'], desc: '生於夏天，火氣旺盛剋水，天氣燥熱，需要金來生水、化解火的剋制，維持水氣穩定。' },
+      秋: { favored: ['土'], desc: '生於秋天，金氣生水，水勢逐漸旺盛，需要土來適度約束水勢，避免氾濫，也可用木洩秀。' },
+      冬: { favored: ['火'], desc: '生於冬天，水氣當令旺盛至極，且天氣寒冷，最需要火來溫暖局面、蒸騰過旺的水氣，土也能同時制水。' }
+    }
+  };
+
+  function calcSeasonalYongshen(chart) {
+    const monthBranch = chart.pillars.month.branch;
+    const season = SEASON_BY_BRANCH[monthBranch];
+    const dm = chart.dayMasterWuxing;
+    const entry = SEASONAL_YONGSHEN[dm][season];
+    return { season, favored: entry.favored, desc: entry.desc };
+  }
+
   return {
     TIANGAN,
     DIZHI,
@@ -351,6 +483,10 @@ const Bazi = (() => {
     getShishen,
     attachShishen,
     calcWuxingRatio,
-    calcShensha
+    calcShensha,
+    getWuxingRelation,
+    getBranchRelation,
+    getNayinWuxing,
+    calcSeasonalYongshen
   };
 })();

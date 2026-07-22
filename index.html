@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-  <title>AI 八字秘書｜輸入出生資料，3 分鐘了解你的命運藍圖</title>
-  <meta name="description" content="AI 八字秘書：專業八字排盤，免費看四柱五行，輸入兌換碼解鎖完整命理報告。純本機儲存，安裝即用，無需登入。" />
+  <title>八字命書｜輸入出生資料，3 分鐘了解你的命運藍圖</title>
+  <meta name="description" content="八字命書：專業八字排盤，免費看四柱五行，輸入兌換碼解鎖完整命理報告。純本機儲存，安裝即用，無需登入。" />
   <meta name="theme-color" content="#0B0F19" />
 
   <!-- PWA -->
@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="八字秘書" />
+  <meta name="apple-mobile-web-app-title" content="八字命書" />
   <link rel="icon" href="icons/icon-192.png" />
 
   <!-- 字體 -->
@@ -28,8 +28,8 @@
     <!-- ================= 首頁 ================= -->
     <section class="screen active" id="screen-home">
       <div class="hero">
-        <span class="hero-badge">AI × 命理</span>
-        <h1>AI 八字秘書</h1>
+        <span class="hero-badge">命理 × 玄學</span>
+        <h1>八字命書</h1>
         <p>輸入出生資料<br />3 分鐘了解你的命運藍圖</p>
         <button class="btn btn-primary" onclick="App.goTo('input')">立即免費排盤</button>
       </div>
@@ -142,6 +142,12 @@
       </div>
 
       <div class="glass-card">
+        <h3>季節用神提醒 <span class="badge badge-free">免費</span></h3>
+        <p id="result-yongshen" style="margin-bottom:4px"></p>
+        <p class="text-sub" style="font-size:11px;margin-bottom:0">※ 簡化版調候參考，完整用神判斷需綜合四柱整體配置</p>
+      </div>
+
+      <div class="glass-card">
         <h3>基礎性格分析 <span class="badge badge-free">免費</span></h3>
         <p id="result-personality" style="margin-bottom:0"></p>
       </div>
@@ -189,6 +195,115 @@
       </div>
     </section>
 
+    <!-- ================= 合盤配對 ================= -->
+    <section class="screen" id="screen-match">
+      <div class="top-bar">
+        <button class="back-btn" onclick="App.goTo('home')">‹</button>
+        <h2>合盤配對</h2>
+      </div>
+
+      <div id="match-setup-wrap">
+        <div class="glass-card">
+          <h3>你的命盤</h3>
+          <div class="field">
+            <label>從歷史命盤中選擇</label>
+            <select id="match-person-a"></select>
+          </div>
+          <p class="hint" style="margin-bottom:0">若尚未有命盤，請先到「排盤」建立一筆屬於你的命盤。</p>
+        </div>
+
+        <div class="glass-card">
+          <h3>對方資料</h3>
+          <div class="field">
+            <label>對方姓名</label>
+            <input type="text" id="match-name-b" placeholder="請輸入對方姓名" />
+          </div>
+          <div class="field">
+            <label>對方性別</label>
+            <div class="gender-toggle">
+              <div class="opt selected" data-gender-b="male" onclick="App.selectGenderB('male')">男</div>
+              <div class="opt" data-gender-b="female" onclick="App.selectGenderB('female')">女</div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>出生年</label>
+              <input type="number" id="match-year-b" placeholder="1990" min="1900" max="2100" />
+            </div>
+            <div class="field">
+              <label>出生月</label>
+              <input type="number" id="match-month-b" placeholder="1-12" min="1" max="12" />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>出生日</label>
+              <input type="number" id="match-day-b" placeholder="1-31" min="1" max="31" />
+            </div>
+            <div class="field">
+              <label>出生時間</label>
+              <input type="time" id="match-time-b" value="12:00" />
+            </div>
+          </div>
+          <div class="field">
+            <label>時區</label>
+            <select id="match-timezone-b"></select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="App.submitMatching()">開始合盤</button>
+      </div>
+
+      <div id="match-result-wrap" style="display:none">
+        <div class="glass-card text-center glow-gold">
+          <h3 id="match-score-level" style="margin-bottom:4px"></h3>
+          <div class="mono" id="match-score-number" style="font-size:40px;font-weight:700;margin-bottom:4px"></div>
+          <p class="text-sub" style="margin-bottom:0;font-size:12px">參考評分（僅供趣味參考，非命理定論）</p>
+        </div>
+
+        <div class="glass-card">
+          <h3>雙方日主 <span class="badge badge-free">免費</span></h3>
+          <p id="match-daymasters" style="margin-bottom:8px"></p>
+          <p id="match-free-summary" style="margin-bottom:0"></p>
+        </div>
+
+        <div class="section-divider">完整合婚分析</div>
+
+        <div id="match-locked-wrap">
+          <div class="locked-section">
+            <div class="lock-icon">🔒</div>
+            <p style="margin-bottom:14px">加入 LINE 官方帳號即可免費領取兌換碼，解鎖完整合婚分析：年支/日支合沖刑判斷、綜合經營建議</p>
+            <a class="btn btn-primary btn-sm" style="width:100%;margin-bottom:14px;box-sizing:border-box" href="https://line.me/R/ti/p/@445vswqi" target="_blank" rel="noopener">💬 加 LINE 好友領取兌換碼</a>
+            <div class="field" style="text-align:left">
+              <input type="text" id="match-redeem-code-input" placeholder="請輸入兌換碼" style="text-align:center;letter-spacing:2px" />
+            </div>
+            <button class="btn btn-tech btn-sm" style="width:100%" onclick="App.tryRedeemMatching()">解鎖完整合婚分析</button>
+          </div>
+        </div>
+
+        <div id="match-paid-wrap" style="display:none">
+          <div class="glass-card glow-tech">
+            <h3>年支關係</h3>
+            <p id="match-year-relation" style="margin-bottom:0"></p>
+          </div>
+          <div class="glass-card glow-tech">
+            <h3>日支關係（夫妻宮）</h3>
+            <p id="match-day-relation" style="margin-bottom:0"></p>
+          </div>
+          <div class="glass-card glow-tech">
+            <h3>納音合婚</h3>
+            <p id="match-nayin-relation" style="margin-bottom:0"></p>
+          </div>
+          <div class="glass-card glow-gold">
+            <h3>綜合經營建議</h3>
+            <p id="match-advice" style="margin-bottom:0;white-space:pre-line"></p>
+          </div>
+        </div>
+
+        <button class="btn btn-ghost" onclick="App.resetMatching()">重新配對</button>
+      </div>
+    </section>
+
     <!-- ================= 歷史命盤 ================= -->
     <section class="screen" id="screen-history">
       <div class="top-bar">
@@ -206,6 +321,9 @@
       <button class="nav-item" data-nav="input" onclick="App.goTo('input')">
         <span class="icon">✦</span><span>排盤</span>
       </button>
+      <button class="nav-item" data-nav="match" onclick="App.goTo('match')">
+        <span class="icon">💞</span><span>合盤</span>
+      </button>
       <button class="nav-item" data-nav="history" onclick="App.goTo('history')">
         <span class="icon">🗂</span><span>歷史命盤</span>
       </button>
@@ -217,14 +335,28 @@
   <!-- 排盤引擎 -->
   <script src="js/astro.js"></script>
   <script src="js/bazi.js"></script>
+  <script src="js/matching.js"></script>
   <script src="js/ai-rules.js"></script>
   <script src="js/db.js"></script>
   <script src="js/app.js"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
+      let refreshedOnce = false;
+
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+        navigator.serviceWorker.register('service-worker.js').then((reg) => {
+          // 每次打開 App 都主動問一次「有沒有新版本」
+          reg.update().catch(() => {});
+        }).catch(() => {});
+      });
+
+      // 偵測到新的 service worker 已接管頁面時，自動重新整理一次，
+      // 讓使用者不需要手動清快取或重新安裝，就能看到最新版本。
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshedOnce) return;
+        refreshedOnce = true;
+        window.location.reload();
       });
     }
   </script>
