@@ -123,7 +123,7 @@ const App = (() => {
 
     const wuxingRatio = Bazi.calcWuxingRatio(chart);
     const shensha = Bazi.calcShensha(chart);
-    const analysis = AIRules.generateFullAnalysis(chart, currentGender);
+    const analysis = AIRules.generateFullAnalysis(chart, currentGender, wuxingRatio);
 
     const record = {
       name,
@@ -180,10 +180,10 @@ const App = (() => {
     // 五行圓餅圖
     renderWuxingChart(record.wuxingRatio);
 
-    // 季節用神提醒
-    const yongshen = Bazi.calcSeasonalYongshen(record.chart);
+    // 五行喜用建議
+    const xiyong = Bazi.calcWuxingXiyong(record.chart);
     document.getElementById('result-yongshen').innerHTML =
-      `生於<span class="text-gold" style="font-weight:700">${yongshen.season}季</span>，喜用五行：<span class="text-tech mono" style="font-weight:700">${yongshen.favored.join('、')}</span><br>${yongshen.desc}`;
+      `生於<span class="text-gold" style="font-weight:700">${xiyong.periodLabel}</span>，喜用五行：<span class="text-tech mono" style="font-weight:700">${xiyong.favored.join('、')}</span><br>${xiyong.desc}`;
 
     // 免費：基礎性格
     document.getElementById('result-personality').textContent = record.analysis.free.personality;
