@@ -395,6 +395,20 @@ p { line-height: 1.7; color: var(--text-sub); margin: 0 0 12px; }
   font-size: 12px;
   color: var(--text-sub);
 }
+.delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-sub);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  line-height: 1;
+}
+.delete-btn:active {
+  background: rgba(248, 113, 113, 0.15);
+  color: #F87171;
+}
 
 /* ---------- 頁首返回列 ---------- */
 .top-bar {

@@ -296,45 +296,180 @@ const Bazi = (() => {
   }
 
   // ============================================================
-  // 簡化版神煞（僅列入命理上最常見、規則明確的幾種）
+  // 神煞判斷（加深版：雙重參照 + 強度評分）
+  // ------------------------------------------------------------
+  // 原本僅用「日支」單一參照查三合局，且只有3種神煞，
+  // 12個地支只會分到4種結果組合，導致很多人算出來相同。
+  //
+  // 改進方式：
+  //   1. 桃花／驛馬／華蓋／將星：同時用「年支」與「日支」各查一次
+  //      （傳統上兩種參法皆可成立，年支與日支未必同組，能產生更多變化）
+  //   2. 天乙貴人／文昌／羊刃／紅豔：以「日干」查（另一組獨立判斷依據）
+  //   3. 魁罡：日柱本身組合直接判斷（庚辰／庚戌／壬辰／戊戌）
+  //   4. 每個神煞計算「強度分數」：
+  //      - 在四柱中重複出現的次數（同一目標地支出現在越多柱，分數越高）
+  //      - 是否經過雙重參照皆印證同一結果（加分）
+  //      - 出現在日柱／時柱（代表自身與親密關係、子女晚年）給予較高權重
+  //      分數最高者視為「命主影響最大的神煞」，優先呈現
   // ============================================================
-  const TAOHUA_MAP = {
-    申: '酉', 子: '酉', 辰: '酉',
-    巳: '午', 酉: '午', 丑: '午',
-    寅: '卯', 午: '卯', 戌: '卯',
-    亥: '子', 卯: '子', 未: '子'
+  const SANHE_SHENSHA_MAPS = {
+    桃花: {
+      map: {
+        申: '酉', 子: '酉', 辰: '酉',
+        巳: '午', 酉: '午', 丑: '午',
+        寅: '卯', 午: '卯', 戌: '卯',
+        亥: '子', 卯: '子', 未: '子'
+      },
+      desc: '人緣佳、異性緣強，感情機會多，社交場合容易受到關注，但也需留意情感糾葛與桃花的分寸拿捏。'
+    },
+    驛馬: {
+      map: {
+        申: '寅', 子: '寅', 辰: '寅',
+        巳: '亥', 酉: '亥', 丑: '亥',
+        寅: '申', 午: '申', 戌: '申',
+        亥: '巳', 卯: '巳', 未: '巳'
+      },
+      desc: '奔波走動之象，適合外地發展、業務往來、跨國跨區域的工作型態，人生變化與移動的機會較多。'
+    },
+    華蓋: {
+      map: {
+        申: '辰', 子: '辰', 辰: '辰',
+        巳: '丑', 酉: '丑', 丑: '丑',
+        寅: '戌', 午: '戌', 戌: '戌',
+        亥: '未', 卯: '未', 未: '未'
+      },
+      desc: '聰慧孤高，思想較為獨立深沉，適合宗教、藝術、命理、研究等需要獨立鑽研的專業領域，但也容易有孤獨感，需留意人際互動的平衡。'
+    },
+    將星: {
+      map: {
+        申: '子', 子: '子', 辰: '子',
+        巳: '酉', 酉: '酉', 丑: '酉',
+        寅: '午', 午: '午', 戌: '午',
+        亥: '卯', 卯: '卯', 未: '卯'
+      },
+      desc: '天生具有領導特質與統御能力，做事積極主動、企圖心強，適合擔任團隊核心或管理職位。'
+    }
   };
-  const YIMA_MAP = {
-    申: '寅', 子: '寅', 辰: '寅',
-    巳: '亥', 酉: '亥', 丑: '亥',
-    寅: '申', 午: '申', 戌: '申',
-    亥: '巳', 卯: '巳', 未: '巳'
+
+  // 天乙貴人（三命通會通行版本，日干查地支，逢凶化吉、貴人相助之象）
+  const TIANYI_GUIREN_MAP = {
+    甲: ['丑', '未'], 戊: ['丑', '未'], 庚: ['丑', '未'],
+    乙: ['子', '申'], 己: ['子', '申'],
+    丙: ['亥', '酉'], 丁: ['亥', '酉'],
+    壬: ['巳', '卯'], 癸: ['巳', '卯'],
+    辛: ['寅', '午']
   };
-  const HUAGAI_MAP = {
-    申: '辰', 子: '辰', 辰: '辰',
-    巳: '丑', 酉: '丑', 丑: '丑',
-    寅: '戌', 午: '戌', 戌: '戌',
-    亥: '未', 卯: '未', 未: '未'
+  // 文昌貴人（日干查地支，主聰穎好學、利考試升學）
+  const WENCHANG_MAP = {
+    甲: '巳', 乙: '午', 丙: '申', 丁: '酉', 戊: '申',
+    己: '酉', 庚: '亥', 辛: '子', 壬: '寅', 癸: '卯'
   };
+  // 羊刃（僅論陽干，主個性剛烈果決、行動力強，惟需留意衝動與意外）
+  const YANGREN_MAP = {
+    甲: '卯', 丙: '午', 戊: '午', 庚: '酉', 壬: '子'
+  };
+  // 紅艷（日干查地支，通行版本，主異性緣特佳、魅力突出）
+  const HONGYAN_MAP = {
+    甲: '午', 乙: '午', 丙: '寅', 丁: '未', 戊: '辰',
+    己: '辰', 庚: '戌', 辛: '酉', 壬: '子', 癸: '申'
+  };
+  // 魁罡（日柱本身四組固定組合，主性格剛強極端、成敗皆易走極端）
+  const KUIGANG_PILLARS = ['庚辰', '庚戌', '壬辰', '戊戌'];
+
+  const SHENSHA_DESC = {
+    天乙貴人: '命中自帶貴人運，遇到困難時容易有人出手相助、逢凶化吉，人際關係上也較容易得到長輩或上位者的提攜。',
+    文昌: '天生聰穎好學、領悟力強，利於考試升學與知識型的學習表現，文筆或表達能力也相對出色。',
+    羊刃: '個性剛烈果決、行動力強，做事乾脆不拖泥帶水，但也容易衝動躁進，需留意人際衝突與意外風險，凡事三思而後行較為穩妥。',
+    紅艷: '異性緣特佳、個人魅力突出，容易受到異性關注與喜愛，但也要留意感情關係中的分寸與界線。',
+    魁罡: '性格剛強極端，做事魄力十足、要求完美，人生際遇容易大起大落，成就與挑戰往往並存，適合在需要決斷力的領域發揮。'
+  };
+
+  // 四柱權重：日柱代表自身與親密關係、時柱代表晚年與子女，影響較為切身，給予較高權重
+  const PILLAR_WEIGHT = { year: 1, month: 1, day: 1.5, hour: 1.3 };
 
   function calcShensha(chart) {
-    const dayBranch = chart.pillars.day.branch;
-    const allBranches = ['year', 'month', 'day', 'hour'].map((k) => chart.pillars[k].branch);
+    const pillarKeys = ['year', 'month', 'day', 'hour'];
+    const branches = {};
+    pillarKeys.forEach((k) => { branches[k] = chart.pillars[k].branch; });
+    const dayStem = chart.pillars.day.stem;
 
-    const results = [];
-    const taohuaTarget = TAOHUA_MAP[dayBranch];
-    const yimaTarget = YIMA_MAP[dayBranch];
-    const huagaiTarget = HUAGAI_MAP[dayBranch];
+    const scoreMap = {}; // name -> { score, reasons: [], desc }
 
-    if (allBranches.includes(taohuaTarget)) {
-      results.push({ name: '桃花', desc: '人緣佳、異性緣強，感情機會多，但也需留意情感糾葛' });
+    function addScore(name, desc, score, reason) {
+      if (!scoreMap[name]) {
+        scoreMap[name] = { name, desc, score: 0, reasons: [] };
+      }
+      scoreMap[name].score += score;
+      scoreMap[name].reasons.push(reason);
     }
-    if (allBranches.includes(yimaTarget)) {
-      results.push({ name: '驛馬', desc: '奔波走動之象，適合外地發展、業務往來或異地工作' });
+
+    // ---------- 三合局系列（桃花/驛馬/華蓋/將星）：年支＋日支雙重參照 ----------
+    Object.keys(SANHE_SHENSHA_MAPS).forEach((name) => {
+      const { map, desc } = SANHE_SHENSHA_MAPS[name];
+      const targetFromYear = map[branches.year];
+      const targetFromDay = map[branches.day];
+      const refTargets = [];
+      if (targetFromYear) refTargets.push({ ref: '年支', target: targetFromYear });
+      if (targetFromDay) refTargets.push({ ref: '日支', target: targetFromDay });
+
+      // 去重：若年支與日支參照到相同目標，視為雙重印證（加分）
+      const uniqueTargets = [...new Set(refTargets.map((r) => r.target))];
+      const doubleConfirmed = refTargets.length === 2 && uniqueTargets.length === 1;
+
+      uniqueTargets.forEach((target) => {
+        const matchedPillars = pillarKeys.filter((k) => branches[k] === target);
+        if (matchedPillars.length === 0) return;
+        const pillarScore = matchedPillars.reduce((sum, k) => sum + PILLAR_WEIGHT[k], 0);
+        const refBonus = doubleConfirmed ? 1.5 : 0;
+        const totalScore = pillarScore + refBonus;
+
+        const pillarLabel = { year: '年柱', month: '月柱', day: '日柱', hour: '時柱' };
+        let reason = `於${matchedPillars.map((k) => pillarLabel[k]).join('、')}見「${target}」`;
+        if (doubleConfirmed) reason += '，年支與日支雙重參照皆印證此結果';
+
+        addScore(name, desc, totalScore, reason);
+      });
+    });
+
+    // ---------- 日干查地支系列（天乙貴人/文昌/羊刃/紅艷）----------
+    function checkStemBasedShensha(name, targetBranches) {
+      if (!targetBranches) return;
+      const targets = Array.isArray(targetBranches) ? targetBranches : [targetBranches];
+      const pillarLabel = { year: '年柱', month: '月柱', day: '日柱', hour: '時柱' };
+      targets.forEach((target) => {
+        const matchedPillars = pillarKeys.filter((k) => branches[k] === target);
+        if (matchedPillars.length === 0) return;
+        const pillarScore = matchedPillars.reduce((sum, k) => sum + PILLAR_WEIGHT[k], 0);
+        const reason = `日干「${dayStem}」查得「${target}」，於${matchedPillars.map((k) => pillarLabel[k]).join('、')}見之`;
+        addScore(name, SHENSHA_DESC[name], pillarScore, reason);
+      });
     }
-    if (allBranches.includes(huagaiTarget)) {
-      results.push({ name: '華蓋', desc: '聰慧孤高，適合宗教、藝術、命理、研究等專業領域' });
+    checkStemBasedShensha('天乙貴人', TIANYI_GUIREN_MAP[dayStem]);
+    checkStemBasedShensha('文昌', WENCHANG_MAP[dayStem]);
+    checkStemBasedShensha('羊刃', YANGREN_MAP[dayStem]);
+    checkStemBasedShensha('紅艷', HONGYAN_MAP[dayStem]);
+
+    // ---------- 魁罡（日柱本身組合判斷）----------
+    if (KUIGANG_PILLARS.includes(chart.pillars.day.ganzhi)) {
+      addScore('魁罡', SHENSHA_DESC['魁罡'], PILLAR_WEIGHT.day + 1, `日柱本身為「${chart.pillars.day.ganzhi}」，屬魁罡格局`);
     }
+
+    // ---------- 彙整、排序、分級 ----------
+    const results = Object.values(scoreMap).map((item) => {
+      let tier;
+      if (item.score >= 3.5) tier = '強';
+      else if (item.score >= 2) tier = '中等';
+      else tier = '一般';
+      return {
+        name: item.name,
+        desc: item.desc,
+        score: Math.round(item.score * 10) / 10,
+        tier,
+        reason: item.reasons.join('；')
+      };
+    });
+
+    results.sort((a, b) => b.score - a.score);
     return results;
   }
 

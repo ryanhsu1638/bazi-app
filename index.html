@@ -154,6 +154,7 @@
 
       <div class="glass-card" id="shensha-card" style="display:none">
         <h3>神煞 <span class="badge badge-free">免費</span></h3>
+        <p class="text-sub" style="font-size:11px;margin-bottom:12px">已依「四柱重複出現次數」與「雙重參照印證」計算強度分數，由影響最大排到最小</p>
         <div id="shensha-list"></div>
       </div>
 
@@ -215,39 +216,55 @@
         <div class="glass-card">
           <h3>對方資料</h3>
           <div class="field">
-            <label>對方姓名</label>
-            <input type="text" id="match-name-b" placeholder="請輸入對方姓名" />
-          </div>
-          <div class="field">
-            <label>對方性別</label>
+            <label>資料來源</label>
             <div class="gender-toggle">
-              <div class="opt selected" data-gender-b="male" onclick="App.selectGenderB('male')">男</div>
-              <div class="opt" data-gender-b="female" onclick="App.selectGenderB('female')">女</div>
+              <div class="opt selected" data-source-b="history" onclick="App.selectMatchSourceB('history')">從歷史命盤選擇</div>
+              <div class="opt" data-source-b="manual" onclick="App.selectMatchSourceB('manual')">手動輸入</div>
             </div>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label>出生年</label>
-              <input type="number" id="match-year-b" placeholder="1990" min="1900" max="2100" />
-            </div>
-            <div class="field">
-              <label>出生月</label>
-              <input type="number" id="match-month-b" placeholder="1-12" min="1" max="12" />
-            </div>
+
+          <div id="match-b-history-wrap" class="field">
+            <label>選擇對方的命盤</label>
+            <select id="match-person-b"></select>
+            <p class="hint" style="margin-bottom:0">會使用該筆命盤紀錄中已存的姓名、性別、出生資料。</p>
           </div>
-          <div class="field-row">
+
+          <div id="match-b-manual-wrap" style="display:none">
             <div class="field">
-              <label>出生日</label>
-              <input type="number" id="match-day-b" placeholder="1-31" min="1" max="31" />
+              <label>對方姓名</label>
+              <input type="text" id="match-name-b" placeholder="請輸入對方姓名" />
             </div>
             <div class="field">
-              <label>出生時間</label>
-              <input type="time" id="match-time-b" value="12:00" />
+              <label>對方性別</label>
+              <div class="gender-toggle">
+                <div class="opt selected" data-gender-b="male" onclick="App.selectGenderB('male')">男</div>
+                <div class="opt" data-gender-b="female" onclick="App.selectGenderB('female')">女</div>
+              </div>
             </div>
-          </div>
-          <div class="field">
-            <label>時區</label>
-            <select id="match-timezone-b"></select>
+            <div class="field-row">
+              <div class="field">
+                <label>出生年</label>
+                <input type="number" id="match-year-b" placeholder="1990" min="1900" max="2100" />
+              </div>
+              <div class="field">
+                <label>出生月</label>
+                <input type="number" id="match-month-b" placeholder="1-12" min="1" max="12" />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>出生日</label>
+                <input type="number" id="match-day-b" placeholder="1-31" min="1" max="31" />
+              </div>
+              <div class="field">
+                <label>出生時間</label>
+                <input type="time" id="match-time-b" value="12:00" />
+              </div>
+            </div>
+            <div class="field">
+              <label>時區</label>
+              <select id="match-timezone-b"></select>
+            </div>
           </div>
         </div>
 

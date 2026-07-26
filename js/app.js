@@ -188,14 +188,26 @@ const App = (() => {
     // 免費：基礎性格
     document.getElementById('result-personality').textContent = record.analysis.free.personality;
 
-    // 神煞
+    // 神煞（已依強度分數排序，最上面即為命主影響最大的神煞）
     const shenshaCard = document.getElementById('shensha-card');
     const shenshaList = document.getElementById('shensha-list');
     if (record.shensha.length > 0) {
       shenshaCard.style.display = 'block';
-      shenshaList.innerHTML = record.shensha.map(
-        (s) => `<p style="margin-bottom:8px"><span class="text-gold" style="font-weight:700">${s.name}</span>　${s.desc}</p>`
-      ).join('');
+      const tierColor = { 強: '#D4AF37', 中等: '#00C2FF', 一般: '#9AA3B8' };
+      shenshaList.innerHTML = record.shensha.map((s, idx) => {
+        const topBadge = idx === 0 && s.tier !== '一般'
+          ? '<span class="badge badge-locked" style="margin-left:6px">命主最具影響力</span>' : '';
+        return `
+          <div style="margin-bottom:14px;padding-bottom:12px;${idx < record.shensha.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.08)' : ''}">
+            <p style="margin-bottom:4px">
+              <span class="text-gold" style="font-weight:700">${s.name}</span>
+              <span class="mono" style="font-size:11px;color:${tierColor[s.tier]};margin-left:6px">[${s.tier}・${s.score}分]</span>
+              ${topBadge}
+            </p>
+            <p style="margin-bottom:4px">${s.desc}</p>
+            <p class="text-sub" style="font-size:11px;margin-bottom:0">判斷依據：${s.reason}</p>
+          </div>`;
+      }).join('');
     } else {
       shenshaCard.style.display = 'none';
     }
@@ -312,7 +324,8 @@ const App = (() => {
             <div class="name">${c.name}　${c.gender === 'male' ? '男' : '女'}</div>
             <div class="meta">${c.input.year}-${String(c.input.month).padStart(2, '0')}-${String(c.input.day).padStart(2, '0')} ・ 日主${dm} ・ ${c.unlocked ? '已解鎖' : '未解鎖'}</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
+          <div style="display:flex;gap:12px;align-items:center">
+            <button class="delete-btn" onclick="event.stopPropagation(); App.confirmDeleteChart(${c.id}, '${c.name.replace(/'/g, "\\'")}')" aria-label="刪除">🗑</button>
             <span class="text-tech">›</span>
           </div>
         </div>`;
@@ -324,6 +337,19 @@ const App = (() => {
       </div>`;
 
     listEl.innerHTML = itemsHtml + footerHtml;
+  }
+
+  async function confirmDeleteChart(id, name) {
+    const sure = window.confirm(`確定要刪除「${name}」這筆命盤嗎？刪除後無法復原。`);
+    if (!sure) return;
+    try {
+      await BaziDB.deleteChart(id);
+      showToast('已刪除這筆命盤');
+      renderHistoryList();
+    } catch (e) {
+      console.error(e);
+      showToast('刪除時發生錯誤，請重試');
+    }
   }
 
   async function viewChart(id) {
@@ -352,21 +378,26 @@ const App = (() => {
 
   async function populateMatchPersonASelect() {
     const sel = document.getElementById('match-person-a');
+    const selB = document.getElementById('match-person-b');
     let charts;
     try {
       charts = await BaziDB.listCharts();
     } catch (e) {
       sel.innerHTML = '<option value="">讀取失敗</option>';
+      selB.innerHTML = '<option value="">讀取失敗</option>';
       return;
     }
     if (charts.length === 0) {
       sel.innerHTML = '<option value="">尚無命盤，請先建立一筆</option>';
+      selB.innerHTML = '<option value="">尚無命盤，請先建立一筆</option>';
       return;
     }
-    sel.innerHTML = charts.map((c) => {
+    const optionsHtml = charts.map((c) => {
       const dateStr = `${c.input.year}-${String(c.input.month).padStart(2, '0')}-${String(c.input.day).padStart(2, '0')}`;
       return `<option value="${c.id}">${c.name}（${dateStr}）</option>`;
     }).join('');
+    sel.innerHTML = optionsHtml;
+    selB.innerHTML = optionsHtml;
   }
 
   function selectGenderB(g) {
@@ -376,23 +407,22 @@ const App = (() => {
     });
   }
 
+  // ---------- 對方資料來源切換（從歷史命盤選擇 / 手動輸入）----------
+  let matchSourceB = 'history';
+
+  function selectMatchSourceB(source) {
+    matchSourceB = source;
+    document.querySelectorAll('.gender-toggle .opt[data-source-b]').forEach((el) => {
+      el.classList.toggle('selected', el.dataset.sourceB === source);
+    });
+    document.getElementById('match-b-history-wrap').style.display = source === 'history' ? 'block' : 'none';
+    document.getElementById('match-b-manual-wrap').style.display = source === 'manual' ? 'block' : 'none';
+  }
+
   async function submitMatching() {
     const personAId = parseInt(document.getElementById('match-person-a').value, 10);
     if (!personAId) {
       showToast('請先選擇你的命盤');
-      return;
-    }
-
-    const nameB = document.getElementById('match-name-b').value.trim() || '對方';
-    const yearB = parseInt(document.getElementById('match-year-b').value, 10);
-    const monthB = parseInt(document.getElementById('match-month-b').value, 10);
-    const dayB = parseInt(document.getElementById('match-day-b').value, 10);
-    const timeStrB = document.getElementById('match-time-b').value || '12:00';
-    const [hourB, minuteB] = timeStrB.split(':').map((v) => parseInt(v, 10));
-    const tzOffsetB = parseInt(document.getElementById('match-timezone-b').value, 10);
-
-    if (!yearB || !monthB || !dayB || Number.isNaN(hourB)) {
-      showToast('請完整填寫對方的出生年、月、日、時間');
       return;
     }
 
@@ -408,20 +438,59 @@ const App = (() => {
       return;
     }
 
-    let chartB;
-    try {
-      chartB = Bazi.calculate({
-        year: yearB, month: monthB, day: dayB, hour: hourB, minute: minuteB || 0,
-        tzOffsetMinutes: tzOffsetB, ziShiRule: 'late'
-      });
-      Bazi.attachShishen(chartB);
-    } catch (e) {
-      console.error(e);
-      showToast('對方命盤排盤時發生錯誤，請確認資料是否正確');
-      return;
+    let chartB, nameB, genderB;
+
+    if (matchSourceB === 'history') {
+      // ---------- 從歷史命盤選擇對方 ----------
+      const personBId = parseInt(document.getElementById('match-person-b').value, 10);
+      if (!personBId) {
+        showToast('請選擇對方的命盤');
+        return;
+      }
+      let recordB;
+      try {
+        recordB = await BaziDB.getChart(personBId);
+      } catch (e) {
+        showToast('讀取對方命盤時發生錯誤');
+        return;
+      }
+      if (!recordB) {
+        showToast('找不到選擇的對方命盤');
+        return;
+      }
+      chartB = recordB.chart;
+      nameB = recordB.name;
+      genderB = recordB.gender;
+    } else {
+      // ---------- 手動輸入對方資料 ----------
+      nameB = document.getElementById('match-name-b').value.trim() || '對方';
+      const yearB = parseInt(document.getElementById('match-year-b').value, 10);
+      const monthB = parseInt(document.getElementById('match-month-b').value, 10);
+      const dayB = parseInt(document.getElementById('match-day-b').value, 10);
+      const timeStrB = document.getElementById('match-time-b').value || '12:00';
+      const [hourB, minuteB] = timeStrB.split(':').map((v) => parseInt(v, 10));
+      const tzOffsetB = parseInt(document.getElementById('match-timezone-b').value, 10);
+
+      if (!yearB || !monthB || !dayB || Number.isNaN(hourB)) {
+        showToast('請完整填寫對方的出生年、月、日、時間');
+        return;
+      }
+
+      try {
+        chartB = Bazi.calculate({
+          year: yearB, month: monthB, day: dayB, hour: hourB, minute: minuteB || 0,
+          tzOffsetMinutes: tzOffsetB, ziShiRule: 'late'
+        });
+        Bazi.attachShishen(chartB);
+      } catch (e) {
+        console.error(e);
+        showToast('對方命盤排盤時發生錯誤，請確認資料是否正確');
+        return;
+      }
+      genderB = matchGenderB;
     }
 
-    const meta = { nameA: recordA.name, nameB, genderA: recordA.gender, genderB: matchGenderB };
+    const meta = { nameA: recordA.name, nameB, genderA: recordA.gender, genderB };
     const result = Matching.computeMatching(recordA.chart, chartB, meta);
 
     currentMatchingResult = result;
@@ -492,6 +561,8 @@ const App = (() => {
     document.getElementById('match-month-b').value = '';
     document.getElementById('match-day-b').value = '';
     document.getElementById('match-redeem-code-input').value = '';
+    selectMatchSourceB('history');
+    populateMatchPersonASelect();
   }
 
   // ---------- 初始化 ----------
@@ -506,7 +577,9 @@ const App = (() => {
     submitChart,
     tryRedeem,
     viewChart,
+    confirmDeleteChart,
     selectGenderB,
+    selectMatchSourceB,
     submitMatching,
     tryRedeemMatching,
     resetMatching
