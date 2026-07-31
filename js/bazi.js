@@ -542,6 +542,55 @@ const Bazi = (() => {
   }
 
   // ============================================================
+  // 財庫判斷
+  // ------------------------------------------------------------
+  // 財庫＝「財星」（我剋者為財）所屬五行的墓庫地支。
+  // 十二長生表通行版本：木墓在未、火墓在戌、金墓在丑、水墓在辰，
+  // 土則依「火土同宮」通行說法，與火共用墓庫（同在戌）。
+  //
+  // 若財星的墓庫地支出現在四柱中，代表命主天生具有「存放財富的容器」，
+  // 賺的錢相對留得住；若這個墓庫地支同時被四柱中其他地支「六沖」，
+  // 傳統上稱為「財庫逢沖」（開庫），代表財務上容易有較大的進出波動，
+  // 未必是壞事（有時反而代表能將存款轉為實質資產運用），但需要多加留意。
+  // ============================================================
+  const WEALTH_STORAGE_BRANCH = { 木: '未', 火: '戌', 土: '戌', 金: '丑', 水: '辰' };
+
+  function calcWealthStorage(chart) {
+    const dm = chart.dayMasterWuxing;
+    const wealthElement = WUXING_KE[dm]; // 我剋者為財
+    const storageBranch = WEALTH_STORAGE_BRANCH[wealthElement];
+
+    const pillarKeys = ['year', 'month', 'day', 'hour'];
+    const pillarLabel = { year: '年柱', month: '月柱', day: '日柱', hour: '時柱' };
+    const branches = {};
+    pillarKeys.forEach((k) => { branches[k] = chart.pillars[k].branch; });
+
+    const matchedPillars = pillarKeys.filter((k) => branches[k] === storageBranch);
+    const hasStorage = matchedPillars.length > 0;
+
+    // 檢查財庫是否被四柱中其他地支六沖
+    const clashingPillars = [];
+    if (hasStorage) {
+      pillarKeys.forEach((k) => {
+        if (matchedPillars.includes(k)) return; // 自己不算
+        if (pairInList(branches[k], storageBranch, LIUCHONG_PAIRS)) {
+          clashingPillars.push(k);
+        }
+      });
+    }
+
+    return {
+      wealthElement,
+      storageBranch,
+      hasStorage,
+      matchedPillars: matchedPillars.map((k) => pillarLabel[k]),
+      matchedPillarKeys: matchedPillars,
+      isClashed: clashingPillars.length > 0,
+      clashingPillars: clashingPillars.map((k) => pillarLabel[k])
+    };
+  }
+
+  // ============================================================
   // 納音五行取值（納音名稱最後一字即為其五行，例如「海中金」→金）
   // ============================================================
   function getNayinWuxing(nayinStr) {
@@ -664,6 +713,7 @@ const Bazi = (() => {
     getWuxingRelation,
     getBranchRelation,
     getNayinWuxing,
-    calcWuxingXiyong
+    calcWuxingXiyong,
+    calcWealthStorage
   };
 })();

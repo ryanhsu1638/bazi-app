@@ -104,6 +104,60 @@ const AIRules = (() => {
     極弱: '從命盤結構看，你的「財星」力量非常薄弱，代表你天生的價值觀可能不那麼看重物質累積，更重視精神層面的滿足，這不是壞事，但若有明確的財富目標，會建議尋求專業理財規劃的協助，用紀律彌補天生財星不顯的狀況。'
   };
 
+  // ---------- 財富等級評分表 ----------
+  // 綜合「財星強弱」「日主強弱是否能擔財」「財庫有無」三項計算總分，
+  // 對應到財富等級標籤。這是本專案自行設計的綜合評分方式，用於呈現一個
+  // 較直觀的整體印象，並非傳統命理中單一固定的「財富等級」技法。
+  const CAI_LEVEL_BASE_SCORE = { 旺: 3, 中等: 2, 偏弱: 1, 極弱: 0 };
+
+  function calcWealthTier(caiLevel, strengthLevel, wealthStorage) {
+    let score = CAI_LEVEL_BASE_SCORE[caiLevel] ?? 1;
+
+    // 日主強弱調整：身強能擔財，財旺又身強是最理想的組合；
+    // 身弱財旺則財來得多卻不易掌控，適度扣分反映「財多身弱」的風險
+    if (strengthLevel === '身強') {
+      if (caiLevel === '旺' || caiLevel === '中等') score += 1;
+    } else if (strengthLevel === '身弱') {
+      if (caiLevel === '旺') score -= 1;
+    }
+
+    // 財庫加分：有財庫代表存得住錢，是額外的加分項
+    if (wealthStorage.hasStorage) {
+      score += 1.5;
+      // 財庫在日柱或時柱（較貼身的位置）額外再加一點
+      if (wealthStorage.matchedPillarKeys.includes('day') || wealthStorage.matchedPillarKeys.includes('hour')) {
+        score += 0.5;
+      }
+    }
+
+    score = Math.max(0, score);
+
+    let tier;
+    if (score >= 4.5) tier = '上等財格';
+    else if (score >= 3) tier = '中上財格';
+    else if (score >= 1.5) tier = '中等財格';
+    else if (score >= 0.5) tier = '平穩發展型';
+    else tier = '需主動創造型';
+
+    return { tier, score: Math.round(score * 10) / 10 };
+  }
+
+  // ---------- 財庫分析文字 ----------
+  function buildWealthStorageNote(wealthStorage) {
+    if (!wealthStorage.hasStorage) {
+      return `以你的日主五行來看，「財星」對應的是「${wealthStorage.wealthElement}」，其墓庫地支「${wealthStorage.storageBranch}」並未出現在你的命盤中，代表傳統命理上所說的「財庫」不顯。這不代表賺不到錢，而是財富較容易隨賺隨用、不易自然沉澱，建議透過強制儲蓄、定期定額投資等紀律性做法，主動為自己建立「財庫」。`;
+    }
+
+    let note = `以你的日主五行來看，「財星」對應的是「${wealthStorage.wealthElement}」，其墓庫地支「${wealthStorage.storageBranch}」出現在你的${wealthStorage.matchedPillars.join('、')}，代表傳統命理上所說的「財庫」已經具備——你天生比較容易把賺到的錢留住、轉化為存款或資產，而不是賺多少花多少。`;
+
+    if (wealthStorage.isClashed) {
+      note += `\n\n不過要留意的是，這個財庫同時被你${wealthStorage.clashingPillars.join('、')}的地支「沖」到，傳統命理稱為「財庫逢沖」。這通常代表財務上容易出現較大金額的一次性進出（例如置產、大額投資、突發開銷等），不完全是壞事，有時反而是把存款轉化為實質資產的契機，但建議大額資金進出前，多一份審慎規劃。`;
+    } else {
+      note += '且這個財庫沒有被其他地支沖動，穩定度較高，是相對單純、有利於長期累積的格局。';
+    }
+    return note;
+  }
+
   // ---------- 官殺強弱 → 事業補充說明 ----------
   const CAREER_PRESSURE_NOTE = {
     旺: '你命盤中的「官殺」力量旺盛，代表你天生承受工作壓力與責任的能耐較強，適合具挑戰性、需要扛起責任的職位，但也要留意長期高壓下的身心平衡，適度安排休息與紓壓管道。',
@@ -163,7 +217,7 @@ const AIRules = (() => {
     木: '肝膽', 火: '心臟與循環系統', 土: '脾胃消化', 金: '肺與呼吸道', 水: '腎臟與泌尿系統'
   };
 
-  function pickDominantShishen(chart) {
+  function getShishenCounter(chart) {
     const counter = {};
     ['year', 'month', 'hour'].forEach((key) => {
       const s = chart.pillars[key].stemShishen;
@@ -175,6 +229,11 @@ const AIRules = (() => {
         counter[item.shishen] = (counter[item.shishen] || 0) + weight;
       });
     });
+    return counter;
+  }
+
+  function pickDominantShishen(chart) {
+    const counter = getShishenCounter(chart);
     let dominant = '正官';
     let max = -1;
     Object.keys(counter).forEach((k) => {
@@ -184,6 +243,84 @@ const AIRules = (() => {
       }
     });
     return dominant;
+  }
+
+  // ============================================================
+  // 特殊格局判斷（免費版展示用）
+  // ------------------------------------------------------------
+  // 傳統命理「格局」理論流派眾多、規則精細，本功能為簡化版判斷，
+  // 依優先順序檢查幾種較具代表性、規則相對明確的格局類型：
+  //   1. 專旺格（一行得氣）：同類五行極度旺盛，幾乎無官殺剋制
+  //      木→曲直格／火→炎上格／土→稼穡格／金→從革格／水→潤下格
+  //   2. 從格：日主極度虛弱，命局氣勢一面倒向某一股力量
+  //      從財格／從殺格／從兒格（從食傷）
+  //   3. 特殊組合格局：殺印相生／官印相生／食神制殺／傷官配印／財多身弱
+  //   4. 正格：以命盤中最鮮明的十神命名（一般格局，多數人屬於此類）
+  // 多數命盤會落在「正格」，較少數才會落入專旺格或從格這類極端格局，
+  // 這是符合命理常態的正常結果，並非判斷有誤。
+  // ============================================================
+  function determineGeju(chart, wuxingRatio, strengthInfo) {
+    const wx = chart.dayMasterWuxing;
+    const tenGodMap = getTenGodWuxingMap(wx);
+    const biJie = wuxingRatio[tenGodMap.比劫] || 0;
+    const yinXing = wuxingRatio[tenGodMap.印星] || 0;
+    const shiShang = wuxingRatio[tenGodMap.食傷] || 0;
+    const caiXing = wuxingRatio[tenGodMap.財星] || 0;
+    const guanSha = wuxingRatio[tenGodMap.官殺] || 0;
+    const support = biJie + yinXing;
+    const counter = getShishenCounter(chart);
+    const c = (name) => counter[name] || 0;
+
+    // ---------- 1. 專旺格：同類五行極度旺盛，幾乎無官殺剋制 ----------
+    const ZHUANWANG_NAME = { 木: '曲直格', 火: '炎上格', 土: '稼穡格', 金: '從革格', 水: '潤下格' };
+    if (biJie >= 45 && guanSha <= 6) {
+      return {
+        name: ZHUANWANG_NAME[wx],
+        category: '專旺格',
+        teaser: `命局中「${wx}」的力量極度旺盛，幾乎不受剋制，形成命理上少見的「一行得氣」格局，代表你的天賦與命運走勢會高度集中在${wx}所代表的特質上，是相對少見、個性鮮明的命格類型。`
+      };
+    }
+
+    // ---------- 2. 從格：日主極度虛弱，命局氣勢一面倒 ----------
+    if (support <= 10 && strengthInfo.diff <= -30) {
+      if (caiXing >= 20 && caiXing >= guanSha && caiXing >= shiShang) {
+        return { name: '從財格', category: '從格', teaser: '你的日主力量極為薄弱，命局氣勢明顯一面倒向「財星」，形成命理上「捨己從財」的特殊格局，人生際遇與財運波動高度連動，格局特殊，並非常見命格。' };
+      }
+      if (guanSha >= 20 && guanSha >= caiXing && guanSha >= shiShang) {
+        return { name: '從殺格', category: '從格', teaser: '你的日主力量極為薄弱，命局氣勢明顯一面倒向「官殺」，形成命理上「捨己從殺」的特殊格局，人生際遇容易與權威、體制或外在壓力緊密相關，格局特殊，並非常見命格。' };
+      }
+      if (shiShang >= 20 && shiShang >= caiXing && shiShang >= guanSha) {
+        return { name: '從兒格', category: '從格', teaser: '你的日主力量極為薄弱，命局氣勢明顯一面倒向「食傷」，形成命理上「捨己從兒」的特殊格局，才華洋溢、表現欲強，人生舞台在於盡情展現自我，格局特殊，並非常見命格。' };
+      }
+    }
+
+    // ---------- 3. 特殊組合格局 ----------
+    if (guanSha >= 12 && yinXing >= 12) {
+      if (c('七殺') >= c('正官')) {
+        return { name: '殺印相生格', category: '特殊格局', teaser: '命局中「七殺」與「印星」同時具備一定力量，形成傳統命理推崇的「殺印相生」格局——外在的壓力與挑戰（殺）能被轉化為滋養自身的資源（印），代表你天生具有「化壓力為助力」的特殊能力。' };
+      }
+      return { name: '官印相生格', category: '特殊格局', teaser: '命局中「正官」與「印星」同時具備一定力量，形成傳統命理推崇的「官印相生」格局——體制內的地位或責任（官）能持續帶來資源與名聲的累積（印），是相對穩健、利於長期發展的格局組合。' };
+    }
+    if (shiShang >= 12 && guanSha >= 12 && c('食神') >= c('傷官')) {
+      return { name: '食神制殺格', category: '特殊格局', teaser: '命局中「食神」與「七殺」同時具備一定力量，形成傳統命理推崇的「食神制殺」格局——你天生具有以柔克剛的智慧，能用從容不迫的方式化解外在的壓力與挑戰，而非正面硬碰硬。' };
+    }
+    if (shiShang >= 12 && yinXing >= 12 && c('傷官') >= c('食神')) {
+      return { name: '傷官配印格', category: '特殊格局', teaser: '命局中「傷官」與「印星」同時具備一定力量，形成傳統命理中的「傷官配印」格局——你的創意、才華與表達能力（傷官）能被印星適度收斂與導正，讓聰明才智發揮在對的地方，而不流於恃才傲物。' };
+    }
+    if (caiXing >= 28 && strengthInfo.level === '身弱') {
+      return { name: '財多身弱格', category: '特殊格局', teaser: '命局中「財星」力量旺盛，但日主本身力量偏弱，形成傳統命理所說的「財多身弱」——眼前的機會與資源不少，但如何真正消化、掌握住這些機會，是你這一生的重要課題。' };
+    }
+    if (caiXing >= 28 && strengthInfo.level === '身強') {
+      return { name: '身強財旺格', category: '特殊格局', teaser: '命局中日主力量強健，「財星」力量也同步旺盛，形成傳統命理中理想的「身強財旺」組合——代表你不僅有機會賺錢，也天生具備足夠的能力去掌握、消化這些機會，是相對難得的好命格組合。' };
+    }
+
+    // ---------- 4. 正格：以命盤中最鮮明的十神命名 ----------
+    const dominant = pickDominantShishen(chart);
+    return {
+      name: `${dominant}格`,
+      category: '正格',
+      teaser: `你的命局屬於命理上最常見的「正格」，以「${dominant}」為命局中最鮮明的主導力量，個性與人生發展方向會圍繞著這股特質展開，是根基相對穩固、發展脈絡清晰的格局類型。`
+    };
   }
 
   // 找出「代表十神」第一次出現在哪一柱的天干（用於敘述人生階段）
@@ -226,6 +363,10 @@ const AIRules = (() => {
     // ---------- 免費：基礎性格（加深：日主本性 + 身強身弱補充）----------
     const personality = `${DAYMASTER_WUXING_PERSONALITY[wx]}\n\n${STRENGTH_PERSONALITY_NOTE[strengthInfo.level]}`;
 
+    // ---------- 免費：日元屬性 + 特殊格局（提升解鎖興趣用）----------
+    const dayElementLabel = `${chart.dayMaster}${wx}`; // 例如「庚金」
+    const gejuInfo = determineGeju(chart, wuxingRatio, strengthInfo);
+
     // ---------- 付費：天賦分析（加深：代表十神 + 所在柱位人生階段）----------
     const talentPillarKey = findShishenPillar(chart, dominantShishen);
     const talentStage = PILLAR_STAGE_MEANING[talentPillarKey];
@@ -245,10 +386,13 @@ const AIRules = (() => {
       : '';
     const relationship = `${relationshipBase}\n\n${spousePalaceNote}`;
 
-    // ---------- 付費：財富運勢（加深：日主五行基調 + 財星強弱補充）----------
+    // ---------- 付費：財富運勢（加深：日主五行基調 + 財星強弱 + 財富等級 + 財庫分析）----------
     const caiRatio = wuxingRatio[tenGodMap.財星] || 0;
     const caiLevel = strengthLabel(caiRatio);
-    const wealth = `${WEALTH_BY_WUXING[wx]}\n\n${WEALTH_STRENGTH_NOTE[caiLevel]}`;
+    const wealthStorage = Bazi.calcWealthStorage(chart);
+    const wealthTierInfo = calcWealthTier(caiLevel, strengthInfo.level, wealthStorage);
+    const wealthStorageNote = buildWealthStorageNote(wealthStorage);
+    const wealth = `${WEALTH_BY_WUXING[wx]}\n\n${WEALTH_STRENGTH_NOTE[caiLevel]}\n\n${wealthStorageNote}`;
 
     // ---------- 付費：健康提醒（加深：日主五行對應臟腑 + 五行最弱項提醒）----------
     const healthBase = HEALTH_BY_WUXING[wx];
@@ -261,8 +405,12 @@ const AIRules = (() => {
     return {
       dominantShishen,
       strengthInfo,
+      wealthTierInfo,
+      gejuInfo,
       free: {
-        personality
+        personality,
+        dayElementLabel,
+        gejuInfo
       },
       paid: {
         talent,

@@ -133,6 +133,16 @@
         <p class="text-center mono text-sub" style="font-size:12px;margin-bottom:0" id="result-daymaster"></p>
       </div>
 
+      <div class="glass-card glow-tech" id="geju-card">
+        <h3>日元格局 <span class="badge badge-free">免費</span></h3>
+        <p style="margin-bottom:10px">
+          你的日元屬於 <span class="text-gold mono" style="font-size:18px;font-weight:700" id="result-day-element"></span>　
+          命局格局：<span class="text-tech" style="font-weight:700" id="result-geju-name"></span>
+        </p>
+        <p id="result-geju-teaser" style="margin-bottom:8px"></p>
+        <p class="text-sub" style="font-size:11px;margin-bottom:0">完整的天賦、事業、財富解讀，將依這個格局為核心在下方深度報告中展開</p>
+      </div>
+
       <div class="glass-card">
         <h3>五行比例 <span class="badge badge-free">免費</span></h3>
         <div class="wuxing-chart-wrap">
@@ -154,7 +164,7 @@
 
       <div class="glass-card" id="shensha-card" style="display:none">
         <h3>神煞 <span class="badge badge-free">免費</span></h3>
-        <p class="text-sub" style="font-size:11px;margin-bottom:12px">已依「四柱重複出現次數」與「雙重參照印證」計算強度分數，由影響最大排到最小</p>
+        <p class="text-sub" style="font-size:11px;margin-bottom:12px">依命盤結構判斷影響力高低，由強至弱排列</p>
         <div id="shensha-list"></div>
       </div>
 
@@ -185,8 +195,9 @@
           <h3 id="relationship-title">感情分析</h3>
           <p id="result-relationship" style="margin-bottom:0;white-space:pre-line"></p>
         </div>
-        <div class="glass-card glow-tech">
+        <div class="glass-card glow-gold">
           <h3>財富運勢</h3>
+          <div id="result-wealth-tier" style="margin-bottom:10px"></div>
           <p id="result-wealth" style="margin-bottom:0;white-space:pre-line"></p>
         </div>
         <div class="glass-card glow-tech">

@@ -177,6 +177,18 @@ const App = (() => {
     document.getElementById('result-daymaster').textContent =
       `日主：${record.chart.dayMaster}（${record.chart.dayMasterWuxing}） ・ 納音：${record.chart.pillars.day.nayin}`;
 
+    // 日元屬性 + 特殊格局（免費展示，提升解鎖興趣）
+    const gejuCard = document.getElementById('geju-card');
+    if (record.analysis.free.gejuInfo) {
+      gejuCard.style.display = 'block';
+      document.getElementById('result-day-element').textContent = record.analysis.free.dayElementLabel;
+      document.getElementById('result-geju-name').textContent = record.analysis.free.gejuInfo.name;
+      document.getElementById('result-geju-teaser').textContent = record.analysis.free.gejuInfo.teaser;
+    } else {
+      // 舊版本存的命盤紀錄沒有這項資料，優雅隱藏，不顯示空白卡片
+      gejuCard.style.display = 'none';
+    }
+
     // 五行圓餅圖
     renderWuxingChart(record.wuxingRatio);
 
@@ -188,7 +200,7 @@ const App = (() => {
     // 免費：基礎性格
     document.getElementById('result-personality').textContent = record.analysis.free.personality;
 
-    // 神煞（已依強度分數排序，最上面即為命主影響最大的神煞）
+    // 神煞（已依強度排序，最上面即為命主影響最大的神煞）
     const shenshaCard = document.getElementById('shensha-card');
     const shenshaList = document.getElementById('shensha-list');
     if (record.shensha.length > 0) {
@@ -201,11 +213,10 @@ const App = (() => {
           <div style="margin-bottom:14px;padding-bottom:12px;${idx < record.shensha.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.08)' : ''}">
             <p style="margin-bottom:4px">
               <span class="text-gold" style="font-weight:700">${s.name}</span>
-              <span class="mono" style="font-size:11px;color:${tierColor[s.tier]};margin-left:6px">[${s.tier}・${s.score}分]</span>
+              <span class="mono" style="font-size:11px;color:${tierColor[s.tier]}">${s.tier}</span>
               ${topBadge}
             </p>
-            <p style="margin-bottom:4px">${s.desc}</p>
-            <p class="text-sub" style="font-size:11px;margin-bottom:0">判斷依據：${s.reason}</p>
+            <p style="margin-bottom:0">${s.desc}</p>
           </div>`;
       }).join('');
     } else {
@@ -229,6 +240,12 @@ const App = (() => {
     document.getElementById('result-career').textContent = analysis.paid.career;
     document.getElementById('result-relationship').textContent = analysis.paid.relationship;
     document.getElementById('relationship-title').textContent = gender === 'female' ? '感情策略（正緣・桃花）' : '感情策略';
+
+    // 財富等級徽章
+    if (analysis.wealthTierInfo) {
+      document.getElementById('result-wealth-tier').innerHTML =
+        `<span class="badge badge-locked" style="font-size:13px;padding:6px 14px">財富等級：${analysis.wealthTierInfo.tier}</span>`;
+    }
     document.getElementById('result-wealth').textContent = analysis.paid.wealth;
     document.getElementById('result-health').textContent = analysis.paid.health;
   }
