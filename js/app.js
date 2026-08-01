@@ -236,6 +236,7 @@ const App = (() => {
     document.getElementById('paid-locked-wrap').style.display = 'none';
     const wrap = document.getElementById('paid-content-wrap');
     wrap.style.display = 'block';
+    document.getElementById('result-geju-achievement').textContent = analysis.paid.gejuAchievement || '';
     document.getElementById('result-talent').textContent = analysis.paid.talent;
     document.getElementById('result-career').textContent = analysis.paid.career;
     document.getElementById('result-relationship').textContent = analysis.paid.relationship;

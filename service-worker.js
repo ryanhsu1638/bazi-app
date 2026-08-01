@@ -19,7 +19,7 @@
  *   但養成習慣一起改版本號，可以確保萬無一失。）
  */
 
-const CACHE_VERSION = 'ai-bazi-secretary-v13';
+const CACHE_VERSION = 'ai-bazi-secretary-v14';
 
 const APP_SHELL_FILES = [
   './',
